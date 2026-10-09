@@ -14,4 +14,4 @@ async def on_ready():
 async def مرحبا(ctx):
     await ctx.send("أهلاً بك! بوتك يعمل بنجاح 🚀")
 
-bot.run("MTU1ODE3Nzg2NzMyMDI3MDkyOQ.GQ51hi.Ed_6-ykda1Ral_wf0544Hqx5l362GQ4RdQMKSA")
+bot.run("MTU1ODE3Nzg2NzMyMDI3MDkyOQ.Gy-mrr.Bhn2ZMtt_uD1lqofrlGaFVe5VfetMclwcVuBkc")
