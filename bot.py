@@ -13,7 +13,6 @@ class MyBot(commands.Bot):
         super().__init__(command_prefix="!", intents=intents)
 
     async def setup_hook(self):
-        # مزامنة أوامر السلاش مع سيرفرك لتظهر فوراً
         await self.tree.sync()
         print("تم مزامنة أوامر السلاش بنجاح!")
 
@@ -24,23 +23,35 @@ secret_numbers = {}
 async def on_ready():
     print(f"تم تسجيل الدخول بنجاح باسم {bot.user}")
 
-# --- نظام تسجيل دخول وخروج الأعضاء في روم logs ---
+# --- نظام تسجيل دخول وخروج الأعضاء بشكل منسق (Embed) في روم logs ---
 @bot.event
 async def on_member_join(member):
     log_channel = discord.utils.get(member.guild.text_channels, name='logs')
     if log_channel:
-        await log_channel.send(f"📥 **عضو جديد دخل السيرفر:** {member.mention} (نورتنا يا بطل!)")
+        embed = discord.Embed(
+            title="📥 دخول عضو جديد",
+            description=f"النور نورك يا {member.mention}!",
+            color=discord.Color.green()
+        )
+        embed.set_thumbnail(url=member.display_avatar.url)
+        embed.set_footer(text=f"Masorh Group • {member.guild.name}")
+        await log_channel.send(embed=embed)
 
 @bot.event
 async def on_member_remove(member):
     log_channel = discord.utils.get(member.guild.text_channels, name='logs')
     if log_channel:
-        await log_channel.send(f"📤 **عضو طلع من السيرفر:** {member.name}")
+        embed = discord.Embed(
+            title="📤 مغادرة عضو",
+            description=f"عضو غادر السيرفر: **{member.name}**",
+            color=discord.Color.red()
+        )
+        embed.set_footer(text=f"Masorh Group • {member.guild.name}")
+        await log_channel.send(embed=embed)
 
 # --- أمر سلاش: مرحبا ---
 @bot.tree.command(name="marhaba", description="يرد عليك البوت لتحييدك")
 async def marhaba(interaction: discord.Interaction):
-    # التأكد أن الأمر في روم chat-bot
     if interaction.channel.name != 'chat-bot':
         await interaction.response.send_message("⚠️ يرجى استخدام الأوامر في روم #chat-bot!", ephemeral=True)
         return
