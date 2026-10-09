@@ -13,5 +13,5 @@ async def on_ready():
 @bot.command()
 async def مرحبا(ctx):
     await ctx.send("أهلاً بك! بوتك يعمل بنجاح")
-
-bot.run("MTU1ODE3Nzg2NzMyMDI3MDkyOQ.GIdEk8.sfY8yrBhVxDGw6_Ru9r5C-GhoKg82SLM2RdRzE")
+import os
+bot.run(os.getenv("TOKEN"))
