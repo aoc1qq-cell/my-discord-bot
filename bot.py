@@ -8,10 +8,10 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
-    print("تم تسجيل الدخول بنجاح")
+    print(f"تم تسجيل الدخول بنجاح باسم {bot.user}")
 
 @bot.command()
 async def مرحبا(ctx):
-    await ctx.send("أهلاً بك! بوتك يعمل بنجاح 🚀")
+    await ctx.send("أهلاً بك! بوتك يعمل بنجاح")
 
-bot.run("MTU1ODE3Nzg2NzMyMDI3MDkyOQ.Gaosey.yHLE6PsJIpPMjUf2Q5UyeWIyzKUQXxYk9vMdRo")
+bot.run("MTU1ODE3Nzg2NzMyMDI3MDkyOQ.GIdEk8.sfY8yrBhVxDGw6_Ru9r5C-GhoKg82SLM2RdRzE")
