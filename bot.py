@@ -128,4 +128,28 @@ async def on_voice_state_update(member, before, after):
                 title="🚫 طرد من روم صوتية",
                 description=(
                     f"👤 **الشخص المطرود:** {member.mention}\n"
-                    f"🛡️ **طُرِد بواسطة:** {kicker.mention
+                    f"🛡️ **طُرِد بواسطة:** {kicker.mention}\n"
+                    f"🔊 **من روم:** **{before.channel.name}**"
+                ),
+                color=discord.Color.red()
+            )
+        else:
+            embed = discord.Embed(
+                title="🔇 خروج من روم صوتية",
+                description=f"خرج {member.mention} من روم **{before.channel.name}**",
+                color=discord.Color.orange()
+            )
+
+        embed.set_thumbnail(url=member.display_avatar.url)
+        embed.set_footer(text=f"Masorh Group • {member.guild.name}")
+        await log_channel.send(embed=embed)
+
+# --- أمر سلاش: مرحبا ---
+@bot.tree.command(name="marhaba", description="يرد عليك البوت لتحييدك")
+async def marhaba(interaction: discord.Interaction):
+    if interaction.channel.name != 'chat-bot':
+        await interaction.response.send_message("⚠️ يرجى استخدام الأوامر في روم #chat-bot!", ephemeral=True)
+        return
+    await interaction.response.send_message("أهلاً بك! بوتك يعمل بنجاح 🚀")
+
+bot.run(os.getenv("TOKEN"))
