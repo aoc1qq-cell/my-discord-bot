@@ -2,7 +2,6 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import os
-import time
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -18,7 +17,6 @@ class MyBot(commands.Bot):
         print("تم مزامنة أوامر السلاش بنجاح!")
 
 bot = MyBot()
-last_voice_time = {}
 
 @bot.event
 async def on_ready():
@@ -50,22 +48,15 @@ async def on_member_remove(member):
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-# --- تتبع الدخول والخروج والانتقال بين الرومات الصوتية (بدون تكرار) ---
+# --- تتبع الدخول والخروج والانتقال بين الرومات الصوتية ---
 @bot.event
 async def on_voice_state_update(member, before, after):
     log_channel = discord.utils.get(member.guild.text_channels, name='logs')
     if not log_channel:
         return
 
-    current_time = time.time()
-
-    # مانع تكرار الرسائل المزدوجة لنفس العضو خلال أقل من 3 ثوانٍ
-    if member.id in last_voice_time and (current_time - last_voice_time[member.id]) < 3:
-        return
-
     # 1. حالة الانتقال بين الرومات الصوتية
     if before.channel is not None and after.channel is not None and before.channel.id != after.channel.id:
-        last_voice_time[member.id] = current_time
         embed = discord.Embed(
             title="🔄 انتقال بين الرومات الصوتية",
             description=f"انتقل {member.mention} من روم **{before.channel.name}** إلى روم **{after.channel.name}**",
@@ -77,7 +68,6 @@ async def on_voice_state_update(member, before, after):
 
     # 2. حالة دخول روم صوتية
     elif before.channel is None and after.channel is not None:
-        last_voice_time[member.id] = current_time
         embed = discord.Embed(
             title="🔊 دخول إلى روم صوتية",
             description=f"دخل {member.mention} إلى روم **{after.channel.name}**",
@@ -89,7 +79,6 @@ async def on_voice_state_update(member, before, after):
 
     # 3. حالة خروج من روم صوتية
     elif before.channel is not None and after.channel is None:
-        last_voice_time[member.id] = current_time
         embed = discord.Embed(
             title="🔇 خروج من روم صوتية",
             description=f"خرج {member.mention} من روم **{before.channel.name}**",
