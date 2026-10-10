@@ -18,13 +18,13 @@ class MyBot(commands.Bot):
         print("تم مزامنة أوامر السلاش بنجاح!")
 
 bot = MyBot()
-last_leave_time = {}
+last_voice_time = {}
 
 @bot.event
 async def on_ready():
     print(f"تم تسجيل الدخول بنجاح باسم {bot.user}")
 
-# --- نظام سجلات الدخول والخروج (Embed) ---
+# --- نظام سجلات دخول وخروج الأعضاء من السيرفر ---
 @bot.event
 async def on_member_join(member):
     log_channel = discord.utils.get(member.guild.text_channels, name='logs')
@@ -50,57 +50,44 @@ async def on_member_remove(member):
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-# --- تتبع الخروج العادي من الرومات الصوتية ---
+# --- تتبع الدخول والخروج من الرومات الصوتية ---
 @bot.event
 async def on_voice_state_update(member, before, after):
-    if before.channel is not None and after.channel is None:
-        current_time = time.time()
-        if member.id in last_leave_time and (current_time - last_leave_time[member.id]) < 5:
-            return
-        last_leave_time[member.id] = current_time
+    log_channel = discord.utils.get(member.guild.text_channels, name='logs')
+    if not log_channel:
+        return
 
-        log_channel = discord.utils.get(member.guild.text_channels, name='logs')
-        if not log_channel:
+    current_time = time.time()
+    
+    # حالة: دخول روم صوتية (لم يكن في روم، وأصبح في روم)
+    if before.channel is None and after.channel is not None:
+        if member.id in last_voice_time and (current_time - last_voice_time[member.id]) < 3:
             return
+        last_voice_time[member.id] = current_time
 
         embed = discord.Embed(
-            title="🔊 خروج من روم صوتية",
+            title="🔊 دخول إلى روم صوتية",
+            description=f"دخل {member.mention} إلى روم **{after.channel.name}**",
+            color=discord.Color.blue()
+        )
+        embed.set_thumbnail(url=member.display_avatar.url)
+        embed.set_footer(text=f"Masorh Group • {member.guild.name}")
+        await log_channel.send(embed=embed)
+
+    # حالة: خروج من روم صوتية (كان في روم، ولم يعد في أي روم)
+    elif before.channel is not None and after.channel is None:
+        if member.id in last_voice_time and (current_time - last_voice_time[member.id]) < 3:
+            return
+        last_voice_time[member.id] = current_time
+
+        embed = discord.Embed(
+            title="🔇 خروج من روم صوتية",
             description=f"خرج {member.mention} من روم **{before.channel.name}**",
             color=discord.Color.orange()
         )
         embed.set_thumbnail(url=member.display_avatar.url)
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
-
-# --- أمر /disconnect المخصص للطرد مع إظهار المطرود والطارد بوضوح ---
-@bot.tree.command(name="disconnect", description="طرد عضو من الروم الصوتية وتسجيل اسم الطارد والمطرود")
-@app_commands.describe(member="العضو المراد طرده من الروم")
-@app_commands.checks.has_permissions(move_members=True)
-async def disconnect(interaction: discord.Interaction, member: discord.Member):
-    if member.voice and member.voice.channel:
-        channel_name = member.voice.channel.name
-        
-        # طرد العضو من المكالمة
-        await member.move_to(None)
-        
-        # إرسال التقرير الشامل في روم logs
-        log_channel = discord.utils.get(interaction.guild.text_channels, name='logs')
-        if log_channel:
-            embed = discord.Embed(
-                title="🚫 طرد من روم صوتية",
-                color=discord.Color.red()
-            )
-            embed.add_field(name="👤 الشخص المطرود", value=f"{member.mention} (`{member.name}`)", inline=False)
-            embed.add_field(name="🛡️ طُرِد بواسطة (الأدمن)", value=f"{interaction.user.mention} (`{interaction.user.name}`)", inline=False)
-            embed.add_field(name="🔊 من الروم", value=f"**{channel_name}**", inline=False)
-            
-            embed.set_thumbnail(url=member.display_avatar.url)
-            embed.set_footer(text=f"Masorh Group • {interaction.guild.name}")
-            await log_channel.send(embed=embed)
-            
-        await interaction.response.send_message(f"✅ تم طرد {member.mention} وتسجيل العملية في #logs", ephemeral=True)
-    else:
-        await interaction.response.send_message("⚠️ هذا العضو ليس في أي روم صوتية حالياً!", ephemeral=True)
 
 # --- أمر سلاش: مرحبا ---
 @bot.tree.command(name="marhaba", description="يرد عليك البوت لتحييدك")
