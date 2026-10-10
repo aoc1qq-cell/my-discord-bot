@@ -14,10 +14,28 @@ class MyBot(commands.Bot):
         super().__init__(command_prefix="!", intents=intents)
 
     async def setup_hook(self):
+        # إضافة مجموعة أوامر الأدمن لشجرة الأوامر
+        self.tree.add_command(admin_group)
         await self.tree.sync()
         print("تم مزامنة أوامر السلاش بنجاح!")
 
 bot = MyBot()
+
+# --- مجموعة أوامر الإدارة (Admin Commands) ---
+admin_group = app_commands.Group(name="admin", description="أوامر الإدارة والمشرفين")
+
+@admin_group.command(name="clear", description="مسح عدد محدد من الرسائل في الشات")
+@app_commands.has_permissions(manage_messages=True)
+async def clear(interaction: discord.Interaction, amount: int):
+    # تأجيل الرد لتفادي مهلة التفاعل (Timeout) أثناء حذف الرسائل
+    await interaction.response.defer(ephemeral=True)
+    
+    # حذف الرسائل من الروم الحالي
+    deleted = await interaction.channel.purge(limit=amount)
+    
+    # إرسال تأكيد للمشرف فقط (ephemeral)
+    await interaction.followup.send(f"تم بنجاح مسح **{len(deleted)}** رسالة.", ephemeral=True)
+
 
 @bot.event
 async def on_ready():
@@ -112,7 +130,6 @@ async def on_voice_state_update(member, before, after):
 
     # 4. حالة خروج أو طرد (Disconnect) من روم صوتية
     elif before.channel is not None and after.channel is None:
-        # الانتظار 1.5 ثانية لضمان كتابة ديسكورد لعملية الطرد في السجلات
         await asyncio.sleep(1.5)
         
         kicker = None
@@ -120,7 +137,7 @@ async def on_voice_state_update(member, before, after):
             async for entry in member.guild.audit_logs(limit=5, action=discord.AuditLogAction.member_disconnect):
                 if entry.target.id == member.id:
                     time_diff = (discord.utils.utcnow() - entry.created_at).total_seconds()
-                    if time_diff < 10:  # التأكد أن الطرد حدث خلال آخر 10 ثوانٍ
+                    if time_diff < 10:
                         kicker = entry.user
                         break
         except Exception:
@@ -146,9 +163,4 @@ async def on_voice_state_update(member, before, after):
 # --- أمر سلاش: مرحبا ---
 @bot.tree.command(name="marhaba", description="يرد عليك البوت لتحييدك")
 async def marhaba(interaction: discord.Interaction):
-    if interaction.channel.name != 'chat-bot':
-        await interaction.response.send_message("⚠️ يرجى استخدام الأوامر في روم #chat-bot!", ephemeral=True)
-        return
-    await interaction.response.send_message("أهلاً بك! بوتك يعمل بنجاح 🚀")
-
-bot.run(os.getenv("TOKEN"))
+    if interaction.channel
