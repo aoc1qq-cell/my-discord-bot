@@ -49,14 +49,14 @@ async def on_member_remove(member):
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-# --- تتبع جميع أحداث الصوت (ميوت، ديفين، طرد، دخول، خروج، انتقال) ---
+# --- تتبع جميع أحداث الصوت (دخول، خروج، انتقال، ميوت، ديفين، طرد) ---
 @bot.event
 async def on_voice_state_update(member, before, after):
     log_channel = discord.utils.get(member.guild.text_channels, name='logs')
     if not log_channel:
         return
 
-    # 1. حالة الميوت الإداري (Server Mute / Unmute)
+    # 1. حالة الميوت الصوتي (Server Mute / Unmute)
     if before.mute != after.mute:
         await asyncio.sleep(1)
         admin = None
@@ -70,7 +70,7 @@ async def on_voice_state_update(member, before, after):
 
         if after.mute:
             embed = discord.Embed(
-                title="🎙️ إعطاء ميوت صوتی (Server Mute)",
+                title="🎙️ إعطاء ميوت صوتي (Server Mute)",
                 description=(
                     f"👤 **العضو:** {member.mention}\n"
                     f"🛡️ **بواسطة المشرف:** {admin.mention if admin else 'غير معروف'}\n"
@@ -90,9 +90,8 @@ async def on_voice_state_update(member, before, after):
         embed.set_thumbnail(url=member.display_avatar.url)
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
-        return
 
-    # 2. حالة الديفين الإداري (Server Deafen / Undeafen)
+    # 2. حالة الديفين (Server Deafen / Undeafen)
     if before.deafen != after.deafen:
         await asyncio.sleep(1)
         admin = None
@@ -126,7 +125,6 @@ async def on_voice_state_update(member, before, after):
         embed.set_thumbnail(url=member.display_avatar.url)
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
-        return
 
     # 3. حالة الانتقال بين الرومات الصوتية
     if before.channel is not None and after.channel is not None and before.channel.id != after.channel.id:
