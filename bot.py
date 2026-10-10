@@ -50,7 +50,7 @@ async def on_member_remove(member):
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-# --- تتبع الدخول والخروج من الرومات الصوتية ---
+# --- تتبع الدخول، الخروج، والانتقال بين الرومات الصوتية ---
 @bot.event
 async def on_voice_state_update(member, before, after):
     log_channel = discord.utils.get(member.guild.text_channels, name='logs')
@@ -59,12 +59,25 @@ async def on_voice_state_update(member, before, after):
 
     current_time = time.time()
     
-    # حالة: دخول روم صوتية (لم يكن في روم، وأصبح في روم)
-    if before.channel is None and after.channel is not None:
-        if member.id in last_voice_time and (current_time - last_voice_time[member.id]) < 3:
-            return
-        last_voice_time[member.id] = current_time
+    # حماية من التكرار السريع
+    if member.id in last_voice_time and (current_time - last_voice_time[member.id]) < 2:
+        return
 
+    # 1. حالة: الانتقال بين رومين (كان في روم وأصبح في روم أخرى مختلفة)
+    if before.channel is not None and after.channel is not None and before.channel.id != after.channel.id:
+        last_voice_time[member.id] = current_time
+        embed = discord.Embed(
+            title="🔄 انتقال بين الرومات الصوتية",
+            description=f"انتقل {member.mention} من روم **{before.channel.name}** إلى روم **{after.channel.name}**",
+            color=discord.Color.purple()
+        )
+        embed.set_thumbnail(url=member.display_avatar.url)
+        embed.set_footer(text=f"Masorh Group • {member.guild.name}")
+        await log_channel.send(embed=embed)
+
+    # 2. حالة: دخول روم صوتية (لم يكن في روم، وأصبح في روم)
+    elif before.channel is None and after.channel is not None:
+        last_voice_time[member.id] = current_time
         embed = discord.Embed(
             title="🔊 دخول إلى روم صوتية",
             description=f"دخل {member.mention} إلى روم **{after.channel.name}**",
@@ -74,12 +87,9 @@ async def on_voice_state_update(member, before, after):
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-    # حالة: خروج من روم صوتية (كان في روم، ولم يعد في أي روم)
+    # 3. حالة: خروج نهائي من روم صوتية (كان في روم، ولم يعد في أي روم)
     elif before.channel is not None and after.channel is None:
-        if member.id in last_voice_time and (current_time - last_voice_time[member.id]) < 3:
-            return
         last_voice_time[member.id] = current_time
-
         embed = discord.Embed(
             title="🔇 خروج من روم صوتية",
             description=f"خرج {member.mention} من روم **{before.channel.name}**",
