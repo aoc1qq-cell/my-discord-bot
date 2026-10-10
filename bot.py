@@ -15,9 +15,9 @@ class MyBot(commands.Bot):
         super().__init__(command_prefix="!", intents=intents)
 
     async def setup_hook(self):
-        # مزامنة عامة (Global) لتظهر الأوامر في جميع السيرفرات مباشرة
+        # مزامنة عامة
         synced = await self.tree.sync()
-        print(f"تم مزامنة {len(synced)} أمر عام بنجاح!")
+        print(f"تم مزامنة {len(synced)} أمر سلاش بنجاح!")
 
 bot = MyBot()
 
