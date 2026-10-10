@@ -15,10 +15,10 @@ class MyBot(commands.Bot):
         super().__init__(command_prefix="!", intents=intents)
 
     async def setup_hook(self):
-        # مزامنة نظيفة خاصة بسيرفرك لمنع التكرار وجعل الأوامر تظهر فوراً
-        MY_GUILD = discord.Object(id=1123687549525823621) # <-- استبدل هذا الرقم بآيدي سيرفرك الحقيقي
+        # ⚠️ ضع آيدي سيرفرك الحقيقي هنا لمنع التكرار ولتظهر الأوامر فوراً
+        MY_GUILD = discord.Object(id=123456789012345678) # <-- استبدل هذا الرقم بآيدي سيرفرك
         
-        # تنظيف الأوامر القديمة العامة لمنع التكرار
+        # مسح الأوامر القديمة المعلقة لمنع التكرار
         self.tree.clear_commands(guild=None)
         
         self.tree.copy_global_to(guild=MY_GUILD)
@@ -48,8 +48,6 @@ FFMPEG_OPTIONS = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
     'options': '-vn'
 }
-
-ytdl = yt_dlp.YoutubeDL(YTDL_OPTIONS)
 
 @bot.event
 async def on_ready():
@@ -182,23 +180,32 @@ async def marhaba(interaction: discord.Interaction):
         return
     await interaction.response.send_message("أهلاً بك! بوتك يعمل بنجاح 🚀")
 
-# --- أمر تشغيل رابط الصوت (/play) مع منع انتهاء المهلة ---
+# --- أمر تشغيل رابط الصوت (/play) المحسن ---
 @bot.tree.command(name="play", description="تشغيل مقطع صوتي من رابط فيديو في القناة الصوتية")
 async def play(interaction: discord.Interaction, url: str):
     if not interaction.user.voice:
         await interaction.response.send_message("❌ يجب أن تكون متواجداً داخل قناة صوتية أولاً!", ephemeral=True)
         return
 
-    # الرد المبدئي السريع لمنع خطأ The application did not respond
+    # رد فوري لمنع خطأ The application did not respond
     await interaction.response.defer(thinking=True)
 
     voice_client = interaction.guild.voice_client
     if not voice_client:
-        voice_client = await interaction.user.voice.channel.connect()
+        try:
+            voice_client = await interaction.user.voice.channel.connect(timeout=10.0)
+        except Exception as e:
+            await interaction.followup.send(f"❌ تعذر الانضمام لقناة الصوت: {e}")
+            return
 
     try:
-        loop = asyncio.get_event_loop()
-        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=False))
+        loop = asyncio.get_running_loop()
+        
+        def extract():
+            with yt_dlp.YoutubeDL(YTDL_OPTIONS) as ydl:
+                return ydl.extract_info(url, download=False)
+
+        data = await loop.run_in_executor(None, extract)
 
         if 'entries' in data:
             data = data['entries'][0]
@@ -215,7 +222,8 @@ async def play(interaction: discord.Interaction, url: str):
         await interaction.followup.send(f"🎶 جاري تشغيل: **{title}**")
 
     except Exception as e:
-        await interaction.followup.send(f"⚠️ حدث خطأ أثناء جلب الرابط: {e}")
+        print(f"Play Error: {e}")
+        await interaction.followup.send(f"⚠️ حدث خطأ أثناء جلب الرابط أو تشغيل الصوت.")
 
 # --- أمر إيقاف الصوت والخروج (/stop) ---
 @bot.tree.command(name="stop", description="إيقاف تشغيل الصوت والخروج من القناة الصوتية")
