@@ -15,18 +15,18 @@ class MyBot(commands.Bot):
         super().__init__(command_prefix="!", intents=intents)
 
     async def setup_hook(self):
-        # ⚠️ ضع آيدي سيرفرك الحقيقي هنا بدلاً من الرقم الموجود
-        GUILD_ID = 1123687549525823621 # <-- استبدل برقم آيدي سيرفرك
+        # ضع آيدي سيرفرك هنا لإظهار الأوامر فوراً وتنظيف التكرار
+        GUILD_ID = 1123687549525823621  # <--- حط آيدي سيرفرك هنا
         guild_object = discord.Object(id=GUILD_ID)
 
-        # 1. مسح الأوامر العامة القديمة لمنع التكرار نهائياً
+        # مسح الأوامر القديمة العامة لمنع التكرار
         self.tree.clear_commands(guild=None)
         await self.tree.sync(guild=None)
 
-        # 2. تسجيل ومزامنة الأوامر لسيرفرك فقط بشكل نظيف
+        # مزامنة الأوامر لسيرفرك فقط
         self.tree.copy_global_to(guild=guild_object)
         synced = await self.tree.sync(guild=guild_object)
-        print(f"✅ تم مسح التكرار ومزامنة {len(synced)} أمر بشكل نظيف!")
+        print(f"✅ تم التنظيف ومزامنة {len(synced)} أمر بشكل صحيح!")
 
 bot = MyBot()
 
@@ -74,7 +74,7 @@ async def on_member_remove(member):
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-# --- الأحداث الصوتية ---
+# --- تتبع الأحداث الصوتية ---
 @bot.event
 async def on_voice_state_update(member, before, after):
     log_channel = discord.utils.get(member.guild.text_channels, name='logs')
@@ -137,7 +137,7 @@ async def on_voice_state_update(member, before, after):
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-# --- الأوامر ---
+# --- أمر مرحبا ---
 @bot.tree.command(name="marhaba", description="يرد عليك البوت لتحييدك")
 async def marhaba(interaction: discord.Interaction):
     if interaction.channel.name != 'chat-bot':
@@ -145,6 +145,7 @@ async def marhaba(interaction: discord.Interaction):
         return
     await interaction.response.send_message("أهلاً بك! بوتك يعمل بنجاح 🚀")
 
+# --- أمر التشغيل الصوتيه (/play) ---
 @bot.tree.command(name="play", description="تشغيل مقطع صوتي من رابط فيديو في القناة الصوتية")
 async def play(interaction: discord.Interaction, url: str):
     if not interaction.user.voice:
@@ -156,7 +157,7 @@ async def play(interaction: discord.Interaction, url: str):
     voice_client = interaction.guild.voice_client
     if not voice_client:
         try:
-            voice_client = await interaction.user.voice.channel.connect(timeout=10.0)
+            voice_client = await interaction.user.voice.channel.connect(timeout=10.0, reconnect=True)
         except Exception as e:
             await interaction.followup.send(f"❌ تعذر الانضمام لقناة الصوت: {e}")
             return
@@ -187,6 +188,7 @@ async def play(interaction: discord.Interaction, url: str):
         print(f"Play Error: {e}")
         await interaction.followup.send(f"⚠️ حدث خطأ أثناء جلب الرابط أو تشغيل الصوت.")
 
+# --- أمر إيقاف الصوت والخروج (/stop) ---
 @bot.tree.command(name="stop", description="إيقاف تشغيل الصوت والخروج من القناة الصوتية")
 async def stop(interaction: discord.Interaction):
     voice_client = interaction.guild.voice_client
