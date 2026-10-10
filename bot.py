@@ -163,4 +163,9 @@ async def on_voice_state_update(member, before, after):
 # --- أمر سلاش: مرحبا ---
 @bot.tree.command(name="marhaba", description="يرد عليك البوت لتحييدك")
 async def marhaba(interaction: discord.Interaction):
-    if interaction.channel
+    if interaction.channel.name != 'chat-bot':
+        await interaction.response.send_message("⚠️ يرجى استخدام الأوامر في روم #chat-bot!", ephemeral=True)
+        return
+    await interaction.response.send_message("أهلاً بك! بوتك يعمل بنجاح 🚀")
+
+bot.run(os.getenv("TOKEN"))
