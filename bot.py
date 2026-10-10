@@ -3,6 +3,7 @@ from discord import app_commands
 from discord.ext import commands
 import os
 import asyncio
+import yt_dlp
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -18,6 +19,30 @@ class MyBot(commands.Bot):
         print("تم مزامنة أوامر السلاش بنجاح!")
 
 bot = MyBot()
+
+# --- إعدادات yt-dlp و FFmpeg لتشغيل روابط الصوت بدقة وثبات ---
+YTDL_OPTIONS = {
+    'format': 'bestaudio/best',
+    'extractaudio': True,
+    'audioformat': 'mp3',
+    'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
+    'restrictfilenames': True,
+    'noplaylist': True,
+    'nocheckcertificate': True,
+    'ignoreerrors': False,
+    'logtostderr': False,
+    'quiet': True,
+    'no_warnings': True,
+    'default_search': 'auto',
+    'source_address': '0.0.0.0'
+}
+
+FFMPEG_OPTIONS = {
+    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+    'options': '-vn'
+}
+
+ytdl = yt_dlp.YoutubeDL(YTDL_OPTIONS)
 
 @bot.event
 async def on_ready():
@@ -112,7 +137,6 @@ async def on_voice_state_update(member, before, after):
 
     # 4. حالة خروج أو طرد (Disconnect) من روم صوتية
     elif before.channel is not None and after.channel is None:
-        # الانتظار 1.5 ثانية لضمان كتابة ديسكورد لعملية الطرد في السجلات
         await asyncio.sleep(1.5)
         
         kicker = None
@@ -120,7 +144,7 @@ async def on_voice_state_update(member, before, after):
             async for entry in member.guild.audit_logs(limit=5, action=discord.AuditLogAction.member_disconnect):
                 if entry.target.id == member.id:
                     time_diff = (discord.utils.utcnow() - entry.created_at).total_seconds()
-                    if time_diff < 10:  # التأكد أن الطرد حدث خلال آخر 10 ثوانٍ
+                    if time_diff < 10:
                         kicker = entry.user
                         break
         except Exception:
@@ -150,5 +174,52 @@ async def marhaba(interaction: discord.Interaction):
         await interaction.response.send_message("⚠️ يرجى استخدام الأوامر في روم #chat-bot!", ephemeral=True)
         return
     await interaction.response.send_message("أهلاً بك! بوتك يعمل بنجاح 🚀")
+
+# --- أمر تشغيل رابط الصوت (/play) ---
+@bot.tree.command(name="play", description="تشغيل مقطع صوتي من رابط فيديو في القناة الصوتية")
+async def play(interaction: discord.Interaction, url: str):
+    # التأكد من وجود العضو داخل قناة صوتية
+    if not interaction.user.voice:
+        await interaction.response.send_message("❌ يجب أن تكون متواجداً داخل قناة صوتية أولاً!", ephemeral=True)
+        return
+
+    # الانضمام للقناة إن لم يكن متصلاً
+    voice_client = interaction.guild.voice_client
+    if not voice_client:
+        voice_client = await interaction.user.voice.channel.connect()
+
+    await interaction.response.defer()
+
+    try:
+        loop = asyncio.get_event_loop()
+        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=False))
+
+        if 'entries' in data:
+            data = data['entries'][0]
+
+        filename = data['url']
+        title = data.get('title', 'مقطع صوتي')
+
+        # إيقاف أي مقطع يعمل حالياً
+        if voice_client.is_playing():
+            voice_client.stop()
+
+        audio_source = discord.FFmpegPCMAudio(filename, **FFMPEG_OPTIONS)
+        voice_client.play(audio_source)
+
+        await interaction.followup.send(f"🎶 جاري تشغيل: **{title}**")
+
+    except Exception as e:
+        await interaction.followup.send(f"⚠️ حدث خطأ أثناء جلب الرابط: {e}")
+
+# --- أمر إيقاف الصوت والخروج (/stop) ---
+@bot.tree.command(name="stop", description="إيقاف تشغيل الصوت والخروج من القناة الصوتية")
+async def stop(interaction: discord.Interaction):
+    voice_client = interaction.guild.voice_client
+    if voice_client and voice_client.is_connected():
+        await voice_client.disconnect()
+        await interaction.response.send_message("👋 تم إيقاف الصوت والخروج من القناة الصوتية.")
+    else:
+        await interaction.response.send_message("❌ البوت غير متصل بأي قناة صوتية حالياً.", ephemeral=True)
 
 bot.run(os.getenv("TOKEN"))
