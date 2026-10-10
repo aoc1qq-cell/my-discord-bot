@@ -7,7 +7,7 @@ import asyncio
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
-intents.voice_states = True  # تفعيل صلاحية تتبع الصوت
+intents.voice_states = True
 
 class MyBot(commands.Bot):
     def __init__(self):
@@ -52,31 +52,32 @@ async def on_member_remove(member):
 # --- تتبع الخروج والطرود من القنوات الصوتية ---
 @bot.event
 async def on_voice_state_update(member, before, after):
-    # التحقق فقط عند الخروج من روم صوتية (كان في روم وأصبح لا يوجد روم)
+    # نتحقق عند خروج العضو تماماً من الروم الصوتية
     if before.channel is not None and after.channel is None:
         log_channel = discord.utils.get(member.guild.text_channels, name='logs')
         if not log_channel:
             return
 
-        await asyncio.sleep(1) # الانتظار ثانية لتحديث سجلات السيرفر (Audit Logs)
+        # انتظار ثانيتين لضمان قيد العملية في سجل السيرفر (Audit Log)
+        await asyncio.sleep(2)
         
         kicker = None
-        # البحث في سجل الأحداث لطرود الصوت الأخيرة
         try:
-            async for entry in member.guild.audit_logs(limit=3, action=discord.AuditLogAction.member_disconnect):
+            # البحث في آخر 5 عمليات طرد من الصوت
+            async for entry in member.guild.audit_logs(limit=5, action=discord.AuditLogAction.member_disconnect):
                 if entry.target.id == member.id:
                     kicker = entry.user
                     break
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"خطأ في جلب سجل الأحداث: {e}")
 
         if kicker:
-            # حالة الطرد: إظهار اسم المطرود واسم الطارد
+            # حالة الطرد (تحديد الطارد والمطرود)
             embed = discord.Embed(
                 title="🚫 طرد من روم صوتية",
                 description=(
-                    f"👤 **الشخص المطرود:** {member.mention} (`{member.name}`)\n"
-                    f"🛡️ **بواسطة (الطارد):** {kicker.mention} (`{kicker.name}`)\n"
+                    f"👤 **الشخص المطرود:** {member.mention}\n"
+                    f"🛡️ **طُرِد بواسطة:** {kicker.mention}\n"
                     f"🔊 **من الروم:** {before.channel.name}"
                 ),
                 color=discord.Color.dark_red()
