@@ -50,7 +50,7 @@ async def on_member_remove(member):
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-# --- تتبع الدخول، الخروج، والانتقال بين الرومات الصوتية (بدون تكرار وبسرعة فائقة) ---
+# --- تتبع الدخول والخروج والانتقال الذاتي بدون تكرار ---
 @bot.event
 async def on_voice_state_update(member, before, after):
     log_channel = discord.utils.get(member.guild.text_channels, name='logs')
@@ -58,12 +58,10 @@ async def on_voice_state_update(member, before, after):
         return
 
     current_time = time.time()
-    
-    # منع تكرار الرسالة لنفس الشخص خلال أقل من 4 ثوانٍ
-    if member.id in last_voice_time and (current_time - last_voice_time[member.id]) < 4:
+    if member.id in last_voice_time and (current_time - last_voice_time[member.id]) < 3:
         return
 
-    # 1. حالة: الانتقال بين رومين
+    # 1. انتقال بين الرومات الصوتية
     if before.channel is not None and after.channel is not None and before.channel.id != after.channel.id:
         last_voice_time[member.id] = current_time
         embed = discord.Embed(
@@ -75,7 +73,7 @@ async def on_voice_state_update(member, before, after):
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-    # 2. حالة: دخول روم صوتية
+    # 2. دخول روم صوتية
     elif before.channel is None and after.channel is not None:
         last_voice_time[member.id] = current_time
         embed = discord.Embed(
@@ -87,7 +85,7 @@ async def on_voice_state_update(member, before, after):
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-    # 3. حالة: خروج من روم صوتية
+    # 3. خروج من روم صوتية
     elif before.channel is not None and after.channel is None:
         last_voice_time[member.id] = current_time
         embed = discord.Embed(
@@ -98,6 +96,59 @@ async def on_voice_state_update(member, before, after):
         embed.set_thumbnail(url=member.display_avatar.url)
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
+
+# --- أمر إداري: طرد عضو من الروم الصوتية وتسجيل اسم المشرف ---
+@bot.tree.command(name="kick_voice", description="طرد عضو من المكالمة الصوتية مع تسجيل اسم المشرف")
+@app_commands.describe(member="العضو المراد طرده")
+@app_commands.checks.has_permissions(move_members=True)
+async def kick_voice(interaction: discord.Interaction, member: discord.Member):
+    if member.voice and member.voice.channel:
+        channel_name = member.voice.channel.name
+        await member.move_to(None)
+        
+        log_channel = discord.utils.get(interaction.guild.text_channels, name='logs')
+        if log_channel:
+            embed = discord.Embed(
+                title="🚫 طرد من روم صوتية",
+                color=discord.Color.red()
+            )
+            embed.add_field(name="👤 الشخص المطرود", value=f"{member.mention} (`{member.name}`)", inline=False)
+            embed.add_field(name="🛡️ طُرِد بواسطة المشرف", value=f"{interaction.user.mention} (`{interaction.user.name}`)", inline=False)
+            embed.add_field(name="🔊 من روم", value=f"**{channel_name}**", inline=False)
+            embed.set_thumbnail(url=member.display_avatar.url)
+            embed.set_footer(text=f"Masorh Group • {interaction.guild.name}")
+            await log_channel.send(embed=embed)
+            
+        await interaction.response.send_message(f"✅ تم طرد {member.mention} وتسجيل العملية في #logs", ephemeral=True)
+    else:
+        await interaction.response.send_message("⚠️ هذا العضو ليس في أي روم صوتية حالياً!", ephemeral=True)
+
+# --- أمر إداري: نقل عضو إلى روم صوتية أخرى وتسجيل اسم المشرف ---
+@bot.tree.command(name="move_voice", description="نقل عضو إلى روم صوتية أخرى مع تسجيل اسم المشرف")
+@app_commands.describe(member="العضو المراد نقله", target_channel="الروم الصوتية المُراد النقل إليها")
+@app_commands.checks.has_permissions(move_members=True)
+async def move_voice(interaction: discord.Interaction, member: discord.Member, target_channel: discord.VoiceChannel):
+    if member.voice and member.voice.channel:
+        old_channel_name = member.voice.channel.name
+        await member.move_to(target_channel)
+        
+        log_channel = discord.utils.get(interaction.guild.text_channels, name='logs')
+        if log_channel:
+            embed = discord.Embed(
+                title="🔄 نقل عضو بين الرومات الصوتية",
+                color=discord.Color.purple()
+            )
+            embed.add_field(name="👤 العضو المنقول", value=f"{member.mention} (`{member.name}`)", inline=False)
+            embed.add_field(name="🛡️ نُقِل بواسطة المشرف", value=f"{interaction.user.mention} (`{interaction.user.name}`)", inline=False)
+            embed.add_field(name="📍 من روم", value=f"**{old_channel_name}**", inline=True)
+            embed.add_field(name="🎯 إلى روم", value=f"**{target_channel.name}**", inline=True)
+            embed.set_thumbnail(url=member.display_avatar.url)
+            embed.set_footer(text=f"Masorh Group • {interaction.guild.name}")
+            await log_channel.send(embed=embed)
+            
+        await interaction.response.send_message(f"✅ تم نقل {member.mention} إلى {target_channel.name} وتسجيل العملية في #logs", ephemeral=True)
+    else:
+        await interaction.response.send_message("⚠️ هذا العضو ليس في أي روم صوتية حالياً!", ephemeral=True)
 
 # --- أمر سلاش: مرحبا ---
 @bot.tree.command(name="marhaba", description="يرد عليك البوت لتحييدك")
