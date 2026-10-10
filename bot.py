@@ -15,14 +15,18 @@ class MyBot(commands.Bot):
         super().__init__(command_prefix="!", intents=intents)
 
     async def setup_hook(self):
-        # 🎯 ضع آيدي سيرفرك هنا (أرقام فقط بدون تنصيص)
-        GUILD_ID = 1123687549525823621  # <--- حط آيدي سيرفرك هنا
+        # ⚠️ ضع آيدي سيرفرك الحقيقي هنا بدلاً من الرقم الموجود
+        GUILD_ID = 1123687549525823621 # <-- استبدل برقم آيدي سيرفرك
         guild_object = discord.Object(id=GUILD_ID)
-        
-        # مزامنة مخصصة للسيرفر تجبر ديسكورد على إظهار الأوامر فوراً
+
+        # 1. مسح الأوامر العامة القديمة لمنع التكرار نهائياً
+        self.tree.clear_commands(guild=None)
+        await self.tree.sync(guild=None)
+
+        # 2. تسجيل ومزامنة الأوامر لسيرفرك فقط بشكل نظيف
         self.tree.copy_global_to(guild=guild_object)
         synced = await self.tree.sync(guild=guild_object)
-        print(f"✅ تم إجبار ديسكورد على مزامنة {len(synced)} أمر في سيرفرك فوراً!")
+        print(f"✅ تم مسح التكرار ومزامنة {len(synced)} أمر بشكل نظيف!")
 
 bot = MyBot()
 
