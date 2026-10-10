@@ -2,7 +2,6 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import os
-import asyncio
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -49,84 +48,14 @@ async def on_member_remove(member):
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-# --- تتبع جميع أحداث الصوت (دخول، خروج، انتقال، ميوت، ديفين، طرد) ---
+# --- تتبع جميع أحداث الصوت فورياً وبدون أي تأخير ---
 @bot.event
 async def on_voice_state_update(member, before, after):
     log_channel = discord.utils.get(member.guild.text_channels, name='logs')
     if not log_channel:
         return
 
-    # 1. حالة الميوت الصوتي (Server Mute / Unmute)
-    if before.mute != after.mute:
-        await asyncio.sleep(1)
-        admin = None
-        try:
-            async for entry in member.guild.audit_logs(limit=3, action=discord.AuditLogAction.member_update):
-                if entry.target.id == member.id and hasattr(entry.after, 'mute'):
-                    admin = entry.user
-                    break
-        except Exception:
-            pass
-
-        if after.mute:
-            embed = discord.Embed(
-                title="🎙️ إعطاء ميوت صوتي (Server Mute)",
-                description=(
-                    f"👤 **العضو:** {member.mention}\n"
-                    f"🛡️ **بواسطة المشرف:** {admin.mention if admin else 'غير معروف'}\n"
-                    f"🔊 **في روم:** **{after.channel.name if after.channel else 'غير معروف'}**"
-                ),
-                color=discord.Color.red()
-            )
-        else:
-            embed = discord.Embed(
-                title="🎙️ فك الميوت الصوتي (Server Unmute)",
-                description=(
-                    f"👤 **العضو:** {member.mention}\n"
-                    f"🛡️ **بواسطة المشرف:** {admin.mention if admin else 'غير معروف'}"
-                ),
-                color=discord.Color.green()
-            )
-        embed.set_thumbnail(url=member.display_avatar.url)
-        embed.set_footer(text=f"Masorh Group • {member.guild.name}")
-        await log_channel.send(embed=embed)
-
-    # 2. حالة الديفين (Server Deafen / Undeafen)
-    if before.deafen != after.deafen:
-        await asyncio.sleep(1)
-        admin = None
-        try:
-            async for entry in member.guild.audit_logs(limit=3, action=discord.AuditLogAction.member_update):
-                if entry.target.id == member.id and hasattr(entry.after, 'deafen'):
-                    admin = entry.user
-                    break
-        except Exception:
-            pass
-
-        if after.deafen:
-            embed = discord.Embed(
-                title="🎧 إعطاء ديفين (Server Deafen)",
-                description=(
-                    f"👤 **العضو:** {member.mention}\n"
-                    f"🛡️ **بواسطة المشرف:** {admin.mention if admin else 'غير معروف'}\n"
-                    f"🔊 **في روم:** **{after.channel.name if after.channel else 'غير معروف'}**"
-                ),
-                color=discord.Color.dark_red()
-            )
-        else:
-            embed = discord.Embed(
-                title="🎧 فك الديفين (Server Undeafen)",
-                description=(
-                    f"👤 **العضو:** {member.mention}\n"
-                    f"🛡️ **بواسطة المشرف:** {admin.mention if admin else 'غير معروف'}"
-                ),
-                color=discord.Color.green()
-            )
-        embed.set_thumbnail(url=member.display_avatar.url)
-        embed.set_footer(text=f"Masorh Group • {member.guild.name}")
-        await log_channel.send(embed=embed)
-
-    # 3. حالة الانتقال بين الرومات الصوتية
+    # 1. حالة الانتقال بين الرومات الصوتية
     if before.channel is not None and after.channel is not None and before.channel.id != after.channel.id:
         embed = discord.Embed(
             title="🔄 انتقال بين الرومات الصوتية",
@@ -137,7 +66,7 @@ async def on_voice_state_update(member, before, after):
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-    # 4. حالة دخول روم صوتية
+    # 2. حالة دخول روم صوتية
     elif before.channel is None and after.channel is not None:
         embed = discord.Embed(
             title="🔊 دخول إلى روم صوتية",
@@ -148,35 +77,49 @@ async def on_voice_state_update(member, before, after):
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-    # 5. حالة خروج أو طرد من روم صوتية
+    # 3. حالة خروج من روم صوتية
     elif before.channel is not None and after.channel is None:
-        await asyncio.sleep(1)
-        kicker = None
-        try:
-            async for entry in member.guild.audit_logs(limit=3, action=discord.AuditLogAction.member_disconnect):
-                if entry.target.id == member.id:
-                    kicker = entry.user
-                    break
-        except Exception:
-            pass
+        embed = discord.Embed(
+            title="🔇 خروج من روم صوتية",
+            description=f"خرج {member.mention} من روم **{before.channel.name}**",
+            color=discord.Color.orange()
+        )
+        embed.set_thumbnail(url=member.display_avatar.url)
+        embed.set_footer(text=f"Masorh Group • {member.guild.name}")
+        await log_channel.send(embed=embed)
 
-        if kicker and kicker.id != member.id:
+    # 4. حالة الميوت الصوتي (Server Mute / Unmute)
+    if before.mute != after.mute:
+        if after.mute:
             embed = discord.Embed(
-                title="🚫 طرد من روم صوتية",
-                description=(
-                    f"👤 **الشخص المطرود:** {member.mention}\n"
-                    f"🛡️ **طُرِد بواسطة المشرف:** {kicker.mention}\n"
-                    f"🔊 **من روم:** **{before.channel.name}**"
-                ),
+                title="🎙️ إعطاء ميوت صوتي (Server Mute)",
+                description=f"تم إعطاء ميوت صوتي للعضو: {member.mention}",
                 color=discord.Color.red()
             )
         else:
             embed = discord.Embed(
-                title="🔇 خروج من روم صوتية",
-                description=f"خرج {member.mention} من روم **{before.channel.name}**",
-                color=discord.Color.orange()
+                title="🎙️ فك الميوت الصوتي (Server Unmute)",
+                description=f"تم فك الميوت الصوتي عن العضو: {member.mention}",
+                color=discord.Color.green()
             )
+        embed.set_thumbnail(url=member.display_avatar.url)
+        embed.set_footer(text=f"Masorh Group • {member.guild.name}")
+        await log_channel.send(embed=embed)
 
+    # 5. حالة الديفين (Server Deafen / Undeafen)
+    if before.deafen != after.deafen:
+        if after.deafen:
+            embed = discord.Embed(
+                title="🎧 إعطاء ديفين (Server Deafen)",
+                description=f"تم إعطاء ديفين للعضو: {member.mention}",
+                color=discord.Color.dark_red()
+            )
+        else:
+            embed = discord.Embed(
+                title="🎧 فك الديفين (Server Undeafen)",
+                description=f"تم فك الديفين عن العضو: {member.mention}",
+                color=discord.Color.green()
+            )
         embed.set_thumbnail(url=member.display_avatar.url)
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
