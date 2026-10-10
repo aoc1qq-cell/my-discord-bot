@@ -25,7 +25,7 @@ bot = MyBot()
 admin_group = app_commands.Group(name="admin", description="أوامر الإدارة والمشرفين")
 
 @admin_group.command(name="clear", description="مسح عدد محدد من الرسائل في الشات")
-@app_commands.has_permissions(manage_messages=True)
+@app_commands.default_permissions(manage_messages=True)  # التعديل الصحيح لصلاحيات السلاش
 async def clear(interaction: discord.Interaction, amount: int):
     # تأجيل الرد لتفادي مهلة التفاعل (Timeout) أثناء حذف الرسائل
     await interaction.response.defer(ephemeral=True)
