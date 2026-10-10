@@ -2,6 +2,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import os
+import asyncio
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -48,7 +49,7 @@ async def on_member_remove(member):
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-# --- تتبع أحداث الصوت (ميوت، طرد، دخول، خروج، انتقال) ---
+# --- تتبع جميع أحداث الصوت (ميوت، طرد، دخول، خروج، انتقال) ---
 @bot.event
 async def on_voice_state_update(member, before, after):
     log_channel = discord.utils.get(member.guild.text_channels, name='logs')
@@ -57,6 +58,7 @@ async def on_voice_state_update(member, before, after):
 
     # 1. حالة الميوت الصوتي (Server Mute / Unmute)
     if before.mute != after.mute:
+        await asyncio.sleep(0.5)
         admin = None
         try:
             async for entry in member.guild.audit_logs(limit=3, action=discord.AuditLogAction.member_update):
@@ -110,11 +112,17 @@ async def on_voice_state_update(member, before, after):
 
     # 4. حالة خروج أو طرد من روم صوتية
     elif before.channel is not None and after.channel is None:
+        # إمهال بسيط جداً لإتاحة الوقت لديسكورد لتسجيل عملية الطرد
+        await asyncio.sleep(0.8)
+        
         kicker = None
         try:
             async for entry in member.guild.audit_logs(limit=3, action=discord.AuditLogAction.member_disconnect):
                 if entry.target.id == member.id:
-                    kicker = entry.user
+                    # التأكد أن الحدث تم خلال آخر 5 ثوانٍ
+                    time_diff = (discord.utils.utcnow() - entry.created_at).total_seconds()
+                    if time_diff < 5:
+                        kicker = entry.user
                     break
         except Exception:
             pass
