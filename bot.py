@@ -49,7 +49,7 @@ async def on_member_remove(member):
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-# --- تتبع أحداث الصوت العادية (دخول، خروج، انتقال، ميوت) ---
+# --- تتبع جميع أحداث الصوت (دخول، خروج، طرد Disconnect، انتقال، ميوت) ---
 @bot.event
 async def on_voice_state_update(member, before, after):
     log_channel = discord.utils.get(member.guild.text_channels, name='logs')
@@ -110,42 +110,38 @@ async def on_voice_state_update(member, before, after):
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-    # 4. حالة خروج من روم صوتية
+    # 4. حالة خروج أو طرد (Disconnect) من روم صوتية
     elif before.channel is not None and after.channel is None:
-        embed = discord.Embed(
-            title="🔇 خروج من روم صوتية",
-            description=f"خرج {member.mention} من روم **{before.channel.name}**",
-            color=discord.Color.orange()
-        )
+        # الانتظار 1.5 ثانية لضمان كتابة ديسكورد لعملية الطرد في السجلات
+        await asyncio.sleep(1.5)
+        
+        kicker = None
+        try:
+            async for entry in member.guild.audit_logs(limit=5, action=discord.AuditLogAction.member_disconnect):
+                if entry.target.id == member.id:
+                    time_diff = (discord.utils.utcnow() - entry.created_at).total_seconds()
+                    if time_diff < 10:  # التأكد أن الطرد حدث خلال آخر 10 ثوانٍ
+                        kicker = entry.user
+                        break
+        except Exception:
+            pass
+
+        if kicker and kicker.id != member.id:
+            embed = discord.Embed(
+                title="🚫 طرد من روم صوتية (Disconnect)",
+                description=f"👤 **الشخص المطرود:** {member.mention}\n🛡️ **طُرِد بواسطة المشرف:** {kicker.mention}\n🔊 **من روم:** **{before.channel.name}**",
+                color=discord.Color.red()
+            )
+        else:
+            embed = discord.Embed(
+                title="🔇 خروج من روم صوتية",
+                description=f"خرج {member.mention} من روم **{before.channel.name}**",
+                color=discord.Color.orange()
+            )
+
         embed.set_thumbnail(url=member.display_avatar.url)
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
-
-# --- أمر إداري دقيق 100%: طرد عضو من الروم الصوتية وتسجيل اسم المشرف ---
-@bot.tree.command(name="kick_voice", description="طرد عضو من المكالمة الصوتية مع تسجيل اسم المشرف فوراً في الـ logs")
-@app_commands.describe(member="العضو المراد طرده")
-@app_commands.checks.has_permissions(move_members=True)
-async def kick_voice(interaction: discord.Interaction, member: discord.Member):
-    if member.voice and member.voice.channel:
-        channel_name = member.voice.channel.name
-        await member.move_to(None)
-        
-        log_channel = discord.utils.get(interaction.guild.text_channels, name='logs')
-        if log_channel:
-            embed = discord.Embed(
-                title="🚫 طرد من روم صوتية",
-                color=discord.Color.red()
-            )
-            embed.add_field(name="👤 الشخص المطرود", value=f"{member.mention} (`{member.name}`)", inline=False)
-            embed.add_field(name="🛡️ طُرِد بواسطة المشرف", value=f"{interaction.user.mention} (`{interaction.user.name}`)", inline=False)
-            embed.add_field(name="🔊 من روم", value=f"**{channel_name}**", inline=False)
-            embed.set_thumbnail(url=member.display_avatar.url)
-            embed.set_footer(text=f"Masorh Group • {interaction.guild.name}")
-            await log_channel.send(embed=embed)
-            
-        await interaction.response.send_message(f"✅ تم طرد {member.mention} وتوثيق العملية في #logs بنجاح!", ephemeral=True)
-    else:
-        await interaction.response.send_message("⚠️ هذا العضو ليس في أي روم صوتية حالياً!", ephemeral=True)
 
 # --- أمر سلاش: مرحبا ---
 @bot.tree.command(name="marhaba", description="يرد عليك البوت لتحييدك")
