@@ -30,7 +30,7 @@ async def on_member_join(member):
     if log_channel:
         embed = discord.Embed(
             title="📥 دخول عضو جديد",
-            description=f"النور نورك يا {member.mention}!",
+            description=f"دخول {member.mention}!",
             color=discord.Color.green()
         )
         embed.set_thumbnail(url=member.display_avatar.url)
