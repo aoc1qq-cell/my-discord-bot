@@ -51,7 +51,7 @@ async def on_member_remove(member):
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-# --- تتبع الصوت تلقائياً مع كشف النقل والطرد من الـ Audit Logs ---
+# --- تتبع تحركات الصوت التلقائية من السجلات ---
 @bot.event
 async def on_voice_state_update(member, before, after):
     log_channel = discord.utils.get(member.guild.text_channels, name='logs')
@@ -60,20 +60,19 @@ async def on_voice_state_update(member, before, after):
 
     current_time = time.time()
 
-    # حماية من تكرار الرسائل لنفس الشخص
+    # مانع تكرار الرسائل المزدوجة
     if member.id in last_voice_time and (current_time - last_voice_time[member.id]) < 3:
         return
 
     # 1. حالة الانتقال بين الرومات الصوتية
     if before.channel is not None and after.channel is not None and before.channel.id != after.channel.id:
         last_voice_time[member.id] = current_time
-        await asyncio.sleep(1) # انتظار ثانية لتسجيل ديسكورد للحدث
+        await asyncio.sleep(1) # إمهال ديسكورد ثانية لتسجيل العملية في Audit Logs
 
         mover = None
         try:
-            async for entry in member.guild.audit_logs(limit=2, action=discord.AuditLogAction.member_move):
-                # التأكد أن الحدث يخص هذا العضو وحدث الآن (خلال آخر 5 ثوانٍ)
-                if entry.target.id == member.id and (discord.utils.utcnow() - entry.created_at).total_seconds() < 5:
+            async for entry in member.guild.audit_logs(limit=5, action=discord.AuditLogAction.member_move):
+                if entry.target.id == member.id:
                     mover = entry.user
                     break
         except Exception:
@@ -116,12 +115,12 @@ async def on_voice_state_update(member, before, after):
     # 3. حالة خروج أو طرد من روم صوتية
     elif before.channel is not None and after.channel is None:
         last_voice_time[member.id] = current_time
-        await asyncio.sleep(1) # انتظار ثانية لتسجيل ديسكورد للحدث
+        await asyncio.sleep(1) # إمهال ديسكورد ثانية لتسجيل العملية في Audit Logs
 
         kicker = None
         try:
-            async for entry in member.guild.audit_logs(limit=2, action=discord.AuditLogAction.member_disconnect):
-                if entry.target.id == member.id and (discord.utils.utcnow() - entry.created_at).total_seconds() < 5:
+            async for entry in member.guild.audit_logs(limit=5, action=discord.AuditLogAction.member_disconnect):
+                if entry.target.id == member.id:
                     kicker = entry.user
                     break
         except Exception:
