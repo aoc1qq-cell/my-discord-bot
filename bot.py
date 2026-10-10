@@ -15,9 +15,14 @@ class MyBot(commands.Bot):
         super().__init__(command_prefix="!", intents=intents)
 
     async def setup_hook(self):
-        # مزامنة عامة
-        synced = await self.tree.sync()
-        print(f"تم مزامنة {len(synced)} أمر سلاش بنجاح!")
+        # 🎯 ضع آيدي سيرفرك هنا (أرقام فقط بدون تنصيص)
+        GUILD_ID = 1123687549525823621  # <--- حط آيدي سيرفرك هنا
+        guild_object = discord.Object(id=GUILD_ID)
+        
+        # مزامنة مخصصة للسيرفر تجبر ديسكورد على إظهار الأوامر فوراً
+        self.tree.copy_global_to(guild=guild_object)
+        synced = await self.tree.sync(guild=guild_object)
+        print(f"✅ تم إجبار ديسكورد على مزامنة {len(synced)} أمر في سيرفرك فوراً!")
 
 bot = MyBot()
 
@@ -47,16 +52,12 @@ FFMPEG_OPTIONS = {
 async def on_ready():
     print(f"تم تسجيل الدخول بنجاح باسم {bot.user}")
 
-# --- نظام سجلات دخول وخروج الأعضاء من السيرفر ---
+# --- نظام سجلات دخول وخروج الأعضاء ---
 @bot.event
 async def on_member_join(member):
     log_channel = discord.utils.get(member.guild.text_channels, name='logs')
     if log_channel:
-        embed = discord.Embed(
-            title="📥 دخول عضو جديد",
-            description=f"دخول {member.mention}!",
-            color=discord.Color.green()
-        )
+        embed = discord.Embed(title="📥 دخول عضو جديد", description=f"دخول {member.mention}!", color=discord.Color.green())
         embed.set_thumbnail(url=member.display_avatar.url)
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
@@ -65,15 +66,11 @@ async def on_member_join(member):
 async def on_member_remove(member):
     log_channel = discord.utils.get(member.guild.text_channels, name='logs')
     if log_channel:
-        embed = discord.Embed(
-            title="📤 مغادرة عضو",
-            description=f"عضو غادر السيرفر: **{member.name}**",
-            color=discord.Color.red()
-        )
+        embed = discord.Embed(title="📤 مغادرة عضو", description=f"عضو غادر السيرفر: **{member.name}**", color=discord.Color.red())
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-# --- تتبع جميع أحداث الصوت (دخول، خروج، طرد Disconnect، انتقال، ميوت) ---
+# --- الأحداث الصوتية ---
 @bot.event
 async def on_voice_state_update(member, before, after):
     log_channel = discord.utils.get(member.guild.text_channels, name='logs')
@@ -136,7 +133,7 @@ async def on_voice_state_update(member, before, after):
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-# --- أمر سلاش: مرحبا ---
+# --- الأوامر ---
 @bot.tree.command(name="marhaba", description="يرد عليك البوت لتحييدك")
 async def marhaba(interaction: discord.Interaction):
     if interaction.channel.name != 'chat-bot':
@@ -144,7 +141,6 @@ async def marhaba(interaction: discord.Interaction):
         return
     await interaction.response.send_message("أهلاً بك! بوتك يعمل بنجاح 🚀")
 
-# --- أمر تشغيل رابط الصوت (/play) ---
 @bot.tree.command(name="play", description="تشغيل مقطع صوتي من رابط فيديو في القناة الصوتية")
 async def play(interaction: discord.Interaction, url: str):
     if not interaction.user.voice:
@@ -187,7 +183,6 @@ async def play(interaction: discord.Interaction, url: str):
         print(f"Play Error: {e}")
         await interaction.followup.send(f"⚠️ حدث خطأ أثناء جلب الرابط أو تشغيل الصوت.")
 
-# --- أمر إيقاف الصوت والخروج (/stop) ---
 @bot.tree.command(name="stop", description="إيقاف تشغيل الصوت والخروج من القناة الصوتية")
 async def stop(interaction: discord.Interaction):
     voice_client = interaction.guild.voice_client
