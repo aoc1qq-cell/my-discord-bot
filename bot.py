@@ -18,8 +18,6 @@ class MyBot(commands.Bot):
         print("تم مزامنة أوامر السلاش بنجاح!")
 
 bot = MyBot()
-
-# قاموس لتتبع آخر وقت أُرسلت فيه رسالة خروج للعضو لمنع التكرار (Cooldown)
 last_leave_time = {}
 
 @bot.event
@@ -52,17 +50,13 @@ async def on_member_remove(member):
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-# --- تتبع الخروج من الرومات الصوتية (مع حماية من التكرار) ---
+# --- تتبع الخروج العادي من الرومات الصوتية ---
 @bot.event
 async def on_voice_state_update(member, before, after):
-    # التأكد أن العضو كان في روم صوتي وخرج منه نهائياً
     if before.channel is not None and after.channel is None:
-        
         current_time = time.time()
-        # منع تكرار الرسالة لنفس العضو إذا حدثت خلال أقل من 5 ثوانٍ
         if member.id in last_leave_time and (current_time - last_leave_time[member.id]) < 5:
             return
-        
         last_leave_time[member.id] = current_time
 
         log_channel = discord.utils.get(member.guild.text_channels, name='logs')
@@ -78,40 +72,27 @@ async def on_voice_state_update(member, before, after):
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-# --- أمر سلاش للطرد من الروم بصلاحية المشرفين ---
-@bot.tree.command(name="disconnect", description="طرد عضو من الروم الصوتية وتسجيله في الـ logs")
+# --- أمر /disconnect المخصص للطرد مع إظهار المطرود والطارد بوضوح ---
+@bot.tree.command(name="disconnect", description="طرد عضو من الروم الصوتية وتسجيل اسم الطارد والمطرود")
 @app_commands.describe(member="العضو المراد طرده من الروم")
 @app_commands.checks.has_permissions(move_members=True)
 async def disconnect(interaction: discord.Interaction, member: discord.Member):
     if member.voice and member.voice.channel:
         channel_name = member.voice.channel.name
+        
+        # طرد العضو من المكالمة
         await member.move_to(None)
         
+        # إرسال التقرير الشامل في روم logs
         log_channel = discord.utils.get(interaction.guild.text_channels, name='logs')
         if log_channel:
             embed = discord.Embed(
-                title="🚫 طرد من روم صوتية (بواسطة مشرف)",
-                description=(
-                    f"👤 **الشخص المطرود:** {member.mention}\n"
-                    f"🛡️ **طُرِد بواسطة المشرف:** {interaction.user.mention}\n"
-                    f"🔊 **من الروم:** {channel_name}"
-                ),
-                color=discord.Color.dark_red()
+                title="🚫 طرد من روم صوتية",
+                color=discord.Color.red()
             )
-            embed.set_thumbnail(url=member.display_avatar.url)
-            embed.set_footer(text=f"Masorh Group • {interaction.guild.name}")
-            await log_channel.send(embed=embed)
+            embed.add_field(name="👤 الشخص المطرود", value=f"{member.mention} (`{member.name}`)", inline=False)
+            embed.add_field(name="🛡️ طُرِد بواسطة (الأدمن)", value=f"{interaction.user.mention} (`{interaction.user.name}`)", inline=False)
+            embed.add_field(name="🔊 من الروم", value=f"**{channel_name}**", inline=False)
             
-        await interaction.response.send_message(f"تم طرد {member.mention} بنجاح وتسجيل العملية في #logs.", ephemeral=True)
-    else:
-        await interaction.response.send_message("⚠️ هذا العضو ليس في أي روم صوتية حالياً!", ephemeral=True)
-
-# --- أمر سلاش: مرحبا ---
-@bot.tree.command(name="marhaba", description="يرد عليك البوت لتحييدك")
-async def marhaba(interaction: discord.Interaction):
-    if interaction.channel.name != 'chat-bot':
-        await interaction.response.send_message("⚠️ يرجى استخدام الأوامر في روم #chat-bot!", ephemeral=True)
-        return
-    await interaction.response.send_message("أهلاً بك! بوتك يعمل بنجاح 🚀")
-
-bot.run(os.getenv("TOKEN"))
+            embed.set_thumbnail(url=member.display_avatar.url)
+            embed.set_footer(text=f"Masorh Group •
