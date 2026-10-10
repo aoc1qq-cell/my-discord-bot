@@ -15,17 +15,19 @@ class MyBot(commands.Bot):
         super().__init__(command_prefix="!", intents=intents)
 
     async def setup_hook(self):
-        # ⚠️ استبدل الرقم أدناه بـ (آيدي سيرفرك الحقيقي) لكي تظهر الأوامر فوراً
-        # (اضغط كليك يمين على اسم سيرفرك في ديسكورد ثم اختر Copy Server ID)
-        MY_GUILD = discord.Object(id=1123687549525823621) # <-- حط آيدي سيرفرك هنا
+        # مزامنة نظيفة خاصة بسيرفرك لمنع التكرار وجعل الأوامر تظهر فوراً
+        MY_GUILD = discord.Object(id=1123687549525823621) # <-- استبدل هذا الرقم بآيدي سيرفرك الحقيقي
+        
+        # تنظيف الأوامر القديمة العامة لمنع التكرار
+        self.tree.clear_commands(guild=None)
         
         self.tree.copy_global_to(guild=MY_GUILD)
         synced = await self.tree.sync(guild=MY_GUILD)
-        print(f"تم مزامنة {len(synced)} أمر في السيرفر فوراً بنجاح!")
+        print(f"تم مزامنة {len(synced)} أمر بشكل نظيف وبدون تكرار!")
 
 bot = MyBot()
 
-# --- إعدادات yt-dlp و FFmpeg لتشغيل روابط الصوت بدقة وثبات ---
+# --- إعدادات yt-dlp و FFmpeg ---
 YTDL_OPTIONS = {
     'format': 'bestaudio/best',
     'extractaudio': True,
@@ -180,18 +182,19 @@ async def marhaba(interaction: discord.Interaction):
         return
     await interaction.response.send_message("أهلاً بك! بوتك يعمل بنجاح 🚀")
 
-# --- أمر تشغيل رابط الصوت (/play) ---
+# --- أمر تشغيل رابط الصوت (/play) مع منع انتهاء المهلة ---
 @bot.tree.command(name="play", description="تشغيل مقطع صوتي من رابط فيديو في القناة الصوتية")
 async def play(interaction: discord.Interaction, url: str):
     if not interaction.user.voice:
         await interaction.response.send_message("❌ يجب أن تكون متواجداً داخل قناة صوتية أولاً!", ephemeral=True)
         return
 
+    # الرد المبدئي السريع لمنع خطأ The application did not respond
+    await interaction.response.defer(thinking=True)
+
     voice_client = interaction.guild.voice_client
     if not voice_client:
         voice_client = await interaction.user.voice.channel.connect()
-
-    await interaction.response.defer()
 
     try:
         loop = asyncio.get_event_loop()
