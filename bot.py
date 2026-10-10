@@ -16,7 +16,7 @@ class MyBot(commands.Bot):
 
     async def setup_hook(self):
         # ⚠️ ضع آيدي سيرفرك الحقيقي هنا لمنع التكرار ولتظهر الأوامر فوراً
-        MY_GUILD = discord.Object(id=123456789012345678) # <-- استبدل هذا الرقم بآيدي سيرفرك
+        MY_GUILD = discord.Object(id=1123687549525823621) # <-- استبدل هذا الرقم بآيدي سيرفرك
         
         # مسح الأوامر القديمة المعلقة لمنع التكرار
         self.tree.clear_commands(guild=None)
