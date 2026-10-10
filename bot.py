@@ -15,18 +15,30 @@ class MyBot(commands.Bot):
         super().__init__(command_prefix="!", intents=intents)
 
     async def setup_hook(self):
-        # استبدل YOUR_GUILD_ID برقم الآيدي الخاص بسيرفرك لتظهر الأوامر فوراً
-        # (أو اتركها عامة، لكن ربطها بالسيرفر يظهرها خلال ثانية)
-        MY_GUILD = discord.Object(id=1123687549525823621)  # <-- ضع آيدي سيرفرك هنا بين الأقواس
+        # تسجيل المجموعات في شجرة الأوامر
+        self.tree.add_command(admin_group)
+        self.tree.add_command(games_group)
         
-        self.tree.copy_global_to(guild=MY_GUILD)
-        synced = await self.tree.sync(guild=MY_GUILD)
-        print(f"تم مزامنة {len(synced)} أمر في السيرفر بنجاح!")
+        # مزامنة جميع الأوامر (العادية والمجموعات) عالمياً
+        synced = await self.tree.sync()
+        print(f"تم مزامنة {len(synced)} أمر سلاش بنجاح!")
 
 bot = MyBot()
 
 # ==========================================
-# مجموعة أوامر الإدارة (/admin ...)
+# 1. أوامر السلاش العادية (التي خارج المجموعات)
+# ==========================================
+
+@bot.tree.command(name="marhaba", description="يرد عليك البوت لتحييدك")
+async def marhaba(interaction: discord.Interaction):
+    if interaction.channel.name != 'chat-bot':
+        await interaction.response.send_message("⚠️ يرجى استخدام الأوامر في روم #chat-bot!", ephemeral=True)
+        return
+    await interaction.response.send_message("أهلاً بك! بوتك يعمل بنجاح 🚀")
+
+
+# ==========================================
+# 2. مجموعة أوامر الإدارة (/admin ...)
 # ==========================================
 admin_group = app_commands.Group(name="admin", description="أوامر الإدارة والمشرفين")
 
@@ -83,8 +95,9 @@ async def role(interaction: discord.Interaction, action: str, target: discord.Me
         await target.remove_roles(role)
         await interaction.response.send_message(f"✅ تم سحب الرتبة **{role.name}** من {target.mention}")
 
+
 # ==========================================
-# مجموعة أوامر الألعاب (/games ...)
+# 3. مجموعة أوامر الألعاب (/games ...)
 # ==========================================
 games_group = app_commands.Group(name="games", description="أوامر الألعاب والترفيه")
 
@@ -92,39 +105,133 @@ games_group = app_commands.Group(name="games", description="أوامر الأل�
 async def balance(interaction: discord.Interaction):
     await interaction.response.send_message(f"💰 رصيدك الحالي يا {interaction.user.mention} هو: **$50**", ephemeral=True)
 
-@games_group.command(name="blackjack", description="بدء لعبة بلاك جاك جديدة وتحدي البوت")
-async def blackjack_game(interaction: discord.Interaction):
-    await interaction.response.send_message("🃏 تم بدء لعبة البلاك جاك! (جارٍ توزيع الأوراق...)")
+@games_group.command(name="blackjack", description="بدء لعبة بلاك جاك جديدة")
+async def blackjack_cmd(interaction: discord.Interaction):
+    await interaction.response.send_message("🃏 تم بدء لعبة البلاك جاك!")
 
-# معالجة الأخطاء
-@clear.error
-@kick.error
-@ban.error
-@timeout.error
-@role.error
-async def admin_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
-    if isinstance(error, app_commands.MissingPermissions):
-        await interaction.response.send_message("❌ ليس لديك الصلاحيات الكافية لاستخدام هذا الأمر!", ephemeral=True)
-    else:
-        await interaction.response.send_message(f"⚠️ حدث خطأ: {error}", ephemeral=True)
+
+# ==========================================
+# الأحداث (Events) والـ Logs
+# ==========================================
 
 @bot.event
 async def on_ready():
     print(f"تم تسجيل الدخول بنجاح باسم {bot.user}")
 
-# --- سجلات الأعضاء والصوت ---
 @bot.event
 async def on_member_join(member):
     log_channel = discord.utils.get(member.guild.text_channels, name='logs')
     if log_channel:
-        embed = discord.Embed(title="📥 دخول عضو جديد", description=f"دخول {member.mention}!", color=discord.Color.green())
+        embed = discord.Embed(
+            title="📥 دخول عضو جديد",
+            description=f"دخول {member.mention}!",
+            color=discord.Color.green()
+        )
+        embed.set_thumbnail(url=member.display_avatar.url)
+        embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
 @bot.event
 async def on_member_remove(member):
     log_channel = discord.utils.get(member.guild.text_channels, name='logs')
     if log_channel:
-        embed = discord.Embed(title="📤 مغادرة عضو", description=f"عضو غادر السيرفر: **{member.name}**", color=discord.Color.red())
+        embed = discord.Embed(
+            title="📤 مغادرة عضو",
+            description=f"عضو غادر السيرفر: **{member.name}**",
+            color=discord.Color.red()
+        )
+        embed.set_footer(text=f"Masorh Group • {member.guild.name}")
+        await log_channel.send(embed=embed)
+
+@bot.event
+async def on_voice_state_update(member, before, after):
+    log_channel = discord.utils.get(member.guild.text_channels, name='logs')
+    if not log_channel:
+        return
+
+    # 1. حالة الميوت الصوتي (Server Mute / Unmute)
+    if before.mute != after.mute:
+        await asyncio.sleep(0.5)
+        admin = None
+        try:
+            async for entry in member.guild.audit_logs(limit=3, action=discord.AuditLogAction.member_update):
+                if entry.target.id == member.id:
+                    admin = entry.user
+                    break
+        except Exception:
+            pass
+
+        admin_mention = admin.mention if admin else "مشرف"
+        room_name = after.channel.name if after.channel else "غير معروف"
+
+        if after.mute:
+            embed = discord.Embed(
+                title="🎙️ إعطاء ميوت صوتي (Server Mute)",
+                description=f"👤 **العضو:** {member.mention}\n🛡️ **بواسطة المشرف:** {admin_mention}\n🔊 **في روم:** **{room_name}**",
+                color=discord.Color.red()
+            )
+        else:
+            embed = discord.Embed(
+                title="🎙️ فك الميوت الصوتي (Server Unmute)",
+                description=f"👤 **العضو:** {member.mention}\n🛡️ **بواسطة المشرف:** {admin_mention}",
+                color=discord.Color.green()
+            )
+        embed.set_thumbnail(url=member.display_avatar.url)
+        embed.set_footer(text=f"Masorh Group • {member.guild.name}")
+        await log_channel.send(embed=embed)
+        return
+
+    # 2. حالة الانتقال بين الرومات الصوتية
+    if before.channel is not None and after.channel is not None and before.channel.id != after.channel.id:
+        embed = discord.Embed(
+            title="🔄 انتقال بين الرومات الصوتية",
+            description=f"انتقل {member.mention} من روم **{before.channel.name}** إلى روم **{after.channel.name}**",
+            color=discord.Color.purple()
+        )
+        embed.set_thumbnail(url=member.display_avatar.url)
+        embed.set_footer(text=f"Masorh Group • {member.guild.name}")
+        await log_channel.send(embed=embed)
+
+    # 3. حالة دخول روم صوتية
+    elif before.channel is None and after.channel is not None:
+        embed = discord.Embed(
+            title="🔊 دخول إلى روم صوتية",
+            description=f"دخل {member.mention} إلى روم **{after.channel.name}**",
+            color=discord.Color.blue()
+        )
+        embed.set_thumbnail(url=member.display_avatar.url)
+        embed.set_footer(text=f"Masorh Group • {member.guild.name}")
+        await log_channel.send(embed=embed)
+
+    # 4. حالة خروج أو طرد (Disconnect) من روم صوتية
+    elif before.channel is not None and after.channel is None:
+        await asyncio.sleep(1.5)
+        kicker = None
+        try:
+            async for entry in member.guild.audit_logs(limit=5, action=discord.AuditLogAction.member_disconnect):
+                if entry.target.id == member.id:
+                    time_diff = (discord.utils.utcnow() - entry.created_at).total_seconds()
+                    if time_diff < 10:
+                        kicker = entry.user
+                        break
+        except Exception:
+            pass
+
+        if kicker and kicker.id != member.id:
+            embed = discord.Embed(
+                title="🚫 طرد من روم صوتية (Disconnect)",
+                description=f"👤 **الشخص المطرود:** {member.mention}\n🛡️ **طُرِد بواسطة المشرف:** {kicker.mention}\n🔊 **من روم:** **{before.channel.name}**",
+                color=discord.Color.red()
+            )
+        else:
+            embed = discord.Embed(
+                title="🔇 خروج من روم صوتية",
+                description=f"خرج {member.mention} من روم **{before.channel.name}**",
+                color=discord.Color.orange()
+            )
+
+        embed.set_thumbnail(url=member.display_avatar.url)
+        embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
 bot.run(os.getenv("TOKEN"))
