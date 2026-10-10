@@ -17,7 +17,7 @@ class MyBot(commands.Bot):
     async def setup_hook(self):
         # استبدل YOUR_GUILD_ID برقم الآيدي الخاص بسيرفرك لتظهر الأوامر فوراً
         # (أو اتركها عامة، لكن ربطها بالسيرفر يظهرها خلال ثانية)
-        MY_GUILD = discord.Object(id=123456789012345678)  # <-- ضع آيدي سيرفرك هنا بين الأقواس
+        MY_GUILD = discord.Object(id=1123687549525823621)  # <-- ضع آيدي سيرفرك هنا بين الأقواس
         
         self.tree.copy_global_to(guild=MY_GUILD)
         synced = await self.tree.sync(guild=MY_GUILD)
