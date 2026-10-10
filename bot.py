@@ -2,7 +2,6 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import os
-import asyncio
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -49,50 +48,53 @@ async def on_member_remove(member):
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-# --- تتبع الخروج والطرود من القنوات الصوتية ---
+# --- تتبع الخروج العادي من الرومات الصوتية ---
 @bot.event
 async def on_voice_state_update(member, before, after):
-    # نتحقق عند خروج العضو تماماً من الروم الصوتية
+    # إذا كان خروجاً طبيعياً (انتقال من روم إلى None)
     if before.channel is not None and after.channel is None:
         log_channel = discord.utils.get(member.guild.text_channels, name='logs')
         if not log_channel:
             return
 
-        # انتظار ثانيتين لضمان قيد العملية في سجل السيرفر (Audit Log)
-        await asyncio.sleep(2)
-        
-        kicker = None
-        try:
-            # البحث في آخر 5 عمليات طرد من الصوت
-            async for entry in member.guild.audit_logs(limit=5, action=discord.AuditLogAction.member_disconnect):
-                if entry.target.id == member.id:
-                    kicker = entry.user
-                    break
-        except Exception as e:
-            print(f"خطأ في جلب سجل الأحداث: {e}")
-
-        if kicker:
-            # حالة الطرد (تحديد الطارد والمطرود)
-            embed = discord.Embed(
-                title="🚫 طرد من روم صوتية",
-                description=(
-                    f"👤 **الشخص المطرود:** {member.mention}\n"
-                    f"🛡️ **طُرِد بواسطة:** {kicker.mention}\n"
-                    f"🔊 **من الروم:** {before.channel.name}"
-                ),
-                color=discord.Color.dark_red()
-            )
-        else:
-            # حالة الخروج الطبيعي
-            embed = discord.Embed(
-                title="🔊 خروج من روم صوتية",
-                description=f"خرج {member.mention} من روم **{before.channel.name}**",
-                color=discord.Color.orange()
-            )
-
+        embed = discord.Embed(
+            title="🔊 خروج من روم صوتية",
+            description=f"خرج {member.mention} من روم **{before.channel.name}**",
+            color=discord.Color.orange()
+        )
         embed.set_thumbnail(url=member.display_avatar.url)
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
+
+# --- أمر سلاش للطرد من الروم مع تسجيل اسم الطارد والمطرود في logs بدقة ---
+@bot.tree.command(name="disconnect", description="طرد عضو من الروم الصوتية وتسجيله في الـ logs")
+@app_commands.describe(member="العضو المراد طرده من الروم")
+@app_commands.checks.has_permissions(move_members=True)
+async def disconnect(interaction: discord.Interaction, member: discord.Member):
+    if member.voice and member.voice.channel:
+        channel_name = member.voice.channel.name
+        # إخراج العضو من الروم الصوتية
+        await member.move_to(None)
+        
+        # إرسال رسالة في شات الـ logs
+        log_channel = discord.utils.get(interaction.guild.text_channels, name='logs')
+        if log_channel:
+            embed = discord.Embed(
+                title="🚫 طرد من روم صوتية (بواسطة مشرف)",
+                description=(
+                    f"👤 **الشخص المطرود:** {member.mention}\n"
+                    f"🛡️ **طُرِد بواسطة المشرف:** {interaction.user.mention}\n"
+                    f"🔊 **من الروم:** {channel_name}"
+                ),
+                color=discord.Color.dark_red()
+            )
+            embed.set_thumbnail(url=member.display_avatar.url)
+            embed.set_footer(text=f"Masorh Group • {interaction.guild.name}")
+            await log_channel.send(embed=embed)
+            
+        await interaction.response.send_message(f"تم طرد {member.mention} بنجاح وتسجيل العملية في #logs.", ephemeral=True)
+    else:
+        await interaction.response.send_message("⚠️ هذا العضو ليس في أي روم صوتية حالياً!", ephemeral=True)
 
 # --- أمر سلاش: مرحبا ---
 @bot.tree.command(name="marhaba", description="يرد عليك البوت لتحييدك")
