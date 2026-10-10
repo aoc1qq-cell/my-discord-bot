@@ -3,7 +3,6 @@ from discord import app_commands
 from discord.ext import commands
 import os
 import time
-import asyncio
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -51,7 +50,7 @@ async def on_member_remove(member):
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-# --- تتبع تحركات الصوت التلقائية من السجلات ---
+# --- تتبع الدخول والخروج والانتقال بين الرومات الصوتية (بدون تكرار) ---
 @bot.event
 async def on_voice_state_update(member, before, after):
     log_channel = discord.utils.get(member.guild.text_channels, name='logs')
@@ -60,42 +59,18 @@ async def on_voice_state_update(member, before, after):
 
     current_time = time.time()
 
-    # مانع تكرار الرسائل المزدوجة
+    # مانع تكرار الرسائل المزدوجة لنفس العضو خلال أقل من 3 ثوانٍ
     if member.id in last_voice_time and (current_time - last_voice_time[member.id]) < 3:
         return
 
     # 1. حالة الانتقال بين الرومات الصوتية
     if before.channel is not None and after.channel is not None and before.channel.id != after.channel.id:
         last_voice_time[member.id] = current_time
-        await asyncio.sleep(1) # إمهال ديسكورد ثانية لتسجيل العملية في Audit Logs
-
-        mover = None
-        try:
-            async for entry in member.guild.audit_logs(limit=5, action=discord.AuditLogAction.member_move):
-                if entry.target.id == member.id:
-                    mover = entry.user
-                    break
-        except Exception:
-            pass
-
-        if mover and mover.id != member.id:
-            embed = discord.Embed(
-                title="🔄 نقل بين الرومات الصوتية",
-                description=(
-                    f"👤 **العضو:** {member.mention}\n"
-                    f"🛡️ **نُقِل بواسطة:** {mover.mention}\n"
-                    f"📍 **من روم:** **{before.channel.name}**\n"
-                    f"🎯 **إلى روم:** **{after.channel.name}**"
-                ),
-                color=discord.Color.purple()
-            )
-        else:
-            embed = discord.Embed(
-                title="🔄 انتقال بين الرومات الصوتية",
-                description=f"انتقل {member.mention} من روم **{before.channel.name}** إلى روم **{after.channel.name}**",
-                color=discord.Color.purple()
-            )
-
+        embed = discord.Embed(
+            title="🔄 انتقال بين الرومات الصوتية",
+            description=f"انتقل {member.mention} من روم **{before.channel.name}** إلى روم **{after.channel.name}**",
+            color=discord.Color.purple()
+        )
         embed.set_thumbnail(url=member.display_avatar.url)
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
@@ -112,37 +87,14 @@ async def on_voice_state_update(member, before, after):
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-    # 3. حالة خروج أو طرد من روم صوتية
+    # 3. حالة خروج من روم صوتية
     elif before.channel is not None and after.channel is None:
         last_voice_time[member.id] = current_time
-        await asyncio.sleep(1) # إمهال ديسكورد ثانية لتسجيل العملية في Audit Logs
-
-        kicker = None
-        try:
-            async for entry in member.guild.audit_logs(limit=5, action=discord.AuditLogAction.member_disconnect):
-                if entry.target.id == member.id:
-                    kicker = entry.user
-                    break
-        except Exception:
-            pass
-
-        if kicker and kicker.id != member.id:
-            embed = discord.Embed(
-                title="🚫 طرد من روم صوتية",
-                description=(
-                    f"👤 **الشخص المطرود:** {member.mention}\n"
-                    f"🛡️ **طُرِد بواسطة:** {kicker.mention}\n"
-                    f"🔊 **من روم:** **{before.channel.name}**"
-                ),
-                color=discord.Color.red()
-            )
-        else:
-            embed = discord.Embed(
-                title="🔇 خروج من روم صوتية",
-                description=f"خرج {member.mention} من روم **{before.channel.name}**",
-                color=discord.Color.orange()
-            )
-
+        embed = discord.Embed(
+            title="🔇 خروج من روم صوتية",
+            description=f"خرج {member.mention} من روم **{before.channel.name}**",
+            color=discord.Color.orange()
+        )
         embed.set_thumbnail(url=member.display_avatar.url)
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
