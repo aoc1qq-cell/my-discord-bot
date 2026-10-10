@@ -95,4 +95,19 @@ async def disconnect(interaction: discord.Interaction, member: discord.Member):
             embed.add_field(name="🔊 من الروم", value=f"**{channel_name}**", inline=False)
             
             embed.set_thumbnail(url=member.display_avatar.url)
-            embed.set_footer(text=f"Masorh Group •
+            embed.set_footer(text=f"Masorh Group • {interaction.guild.name}")
+            await log_channel.send(embed=embed)
+            
+        await interaction.response.send_message(f"✅ تم طرد {member.mention} وتسجيل العملية في #logs", ephemeral=True)
+    else:
+        await interaction.response.send_message("⚠️ هذا العضو ليس في أي روم صوتية حالياً!", ephemeral=True)
+
+# --- أمر سلاش: مرحبا ---
+@bot.tree.command(name="marhaba", description="يرد عليك البوت لتحييدك")
+async def marhaba(interaction: discord.Interaction):
+    if interaction.channel.name != 'chat-bot':
+        await interaction.response.send_message("⚠️ يرجى استخدام الأوامر في روم #chat-bot!", ephemeral=True)
+        return
+    await interaction.response.send_message("أهلاً بك! بوتك يعمل بنجاح 🚀")
+
+bot.run(os.getenv("TOKEN"))
