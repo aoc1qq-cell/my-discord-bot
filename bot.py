@@ -15,8 +15,13 @@ class MyBot(commands.Bot):
         super().__init__(command_prefix="!", intents=intents)
 
     async def setup_hook(self):
-        await self.tree.sync()
-        print("تم مزامنة أوامر السلاش بنجاح!")
+        # ⚠️ استبدل الرقم أدناه بـ (آيدي سيرفرك الحقيقي) لكي تظهر الأوامر فوراً
+        # (اضغط كليك يمين على اسم سيرفرك في ديسكورد ثم اختر Copy Server ID)
+        MY_GUILD = discord.Object(id=1123687549525823621) # <-- حط آيدي سيرفرك هنا
+        
+        self.tree.copy_global_to(guild=MY_GUILD)
+        synced = await self.tree.sync(guild=MY_GUILD)
+        print(f"تم مزامنة {len(synced)} أمر في السيرفر فوراً بنجاح!")
 
 bot = MyBot()
 
@@ -178,12 +183,10 @@ async def marhaba(interaction: discord.Interaction):
 # --- أمر تشغيل رابط الصوت (/play) ---
 @bot.tree.command(name="play", description="تشغيل مقطع صوتي من رابط فيديو في القناة الصوتية")
 async def play(interaction: discord.Interaction, url: str):
-    # التأكد من وجود العضو داخل قناة صوتية
     if not interaction.user.voice:
         await interaction.response.send_message("❌ يجب أن تكون متواجداً داخل قناة صوتية أولاً!", ephemeral=True)
         return
 
-    # الانضمام للقناة إن لم يكن متصلاً
     voice_client = interaction.guild.voice_client
     if not voice_client:
         voice_client = await interaction.user.voice.channel.connect()
@@ -200,7 +203,6 @@ async def play(interaction: discord.Interaction, url: str):
         filename = data['url']
         title = data.get('title', 'مقطع صوتي')
 
-        # إيقاف أي مقطع يعمل حالياً
         if voice_client.is_playing():
             voice_client.stop()
 
