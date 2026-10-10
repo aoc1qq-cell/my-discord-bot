@@ -48,15 +48,15 @@ async def on_member_remove(member):
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-# --- تتبع جميع أحداث الصوت (دخول، خروج، طرد إداري، انتقال، ديفين) ---
+# --- تتبع أحداث الصوت (ميوت، طرد، دخول، خروج، انتقال) ---
 @bot.event
 async def on_voice_state_update(member, before, after):
     log_channel = discord.utils.get(member.guild.text_channels, name='logs')
     if not log_channel:
         return
 
-    # 1. حالة الديفين (Server Deafen / Undeafen)
-    if before.deafen != after.deafen:
+    # 1. حالة الميوت الصوتي (Server Mute / Unmute)
+    if before.mute != after.mute:
         admin = None
         try:
             async for entry in member.guild.audit_logs(limit=3, action=discord.AuditLogAction.member_update):
@@ -66,23 +66,19 @@ async def on_voice_state_update(member, before, after):
         except Exception:
             pass
 
-        if after.deafen:
+        admin_mention = admin.mention if admin else "مشرف"
+        room_name = after.channel.name if after.channel else "غير معروف"
+
+        if after.mute:
             embed = discord.Embed(
-                title="🎧 إعطاء ديفين (Server Deafen)",
-                description=(
-                    f"👤 **العضو:** {member.mention}\n"
-                    f"🛡️ **بواسطة المشرف:** {admin.mention if admin else 'مشرف'}\n"
-                    f"🔊 **في روم:** **{after.channel.name if after.channel else 'غير معروف'}**"
-                ),
-                color=discord.Color.dark_red()
+                title="🎙️ إعطاء ميوت صوتي (Server Mute)",
+                description=f"👤 **العضو:** {member.mention}\n🛡️ **بواسطة المشرف:** {admin_mention}\n🔊 **في روم:** **{room_name}**",
+                color=discord.Color.red()
             )
         else:
             embed = discord.Embed(
-                title="🎧 فك الديفين (Server Undeafen)",
-                description=(
-                    f"👤 **العضو:** {member.mention}\n"
-                    f"🛡️ **بواسطة المشرف:** {admin.mention if admin else 'مشرف'}"
-                ),
+                title="🎙️ فك الميوت الصوتي (Server Unmute)",
+                description=f"👤 **العضو:** {member.mention}\n🛡️ **بواسطة المشرف:** {admin_mention}",
                 color=discord.Color.green()
             )
         embed.set_thumbnail(url=member.display_avatar.url)
@@ -126,11 +122,7 @@ async def on_voice_state_update(member, before, after):
         if kicker and kicker.id != member.id:
             embed = discord.Embed(
                 title="🚫 طرد من روم صوتية",
-                description=(
-                    f"👤 **الشخص المطرود:** {member.mention}\n"
-                    f"🛡️ **طُرِد بواسطة:** {kicker.mention}\n"
-                    f"🔊 **من روم:** **{before.channel.name}**"
-                ),
+                description=f"👤 **الشخص المطرود:** {member.mention}\n🛡️ **طُرِد بواسطة:** {kicker.mention}\n🔊 **من روم:** **{before.channel.name}**",
                 color=discord.Color.red()
             )
         else:
