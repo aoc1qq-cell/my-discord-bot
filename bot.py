@@ -2,6 +2,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import os
+import time
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -17,6 +18,9 @@ class MyBot(commands.Bot):
         print("تم مزامنة أوامر السلاش بنجاح!")
 
 bot = MyBot()
+
+# قاموس لتتبع آخر وقت أُرسلت فيه رسالة خروج للعضو لمنع التكرار (Cooldown)
+last_leave_time = {}
 
 @bot.event
 async def on_ready():
@@ -48,11 +52,19 @@ async def on_member_remove(member):
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-# --- تتبع الخروج العادي من الرومات الصوتية ---
+# --- تتبع الخروج من الرومات الصوتية (مع حماية من التكرار) ---
 @bot.event
 async def on_voice_state_update(member, before, after):
-    # إذا كان خروجاً طبيعياً (انتقال من روم إلى None)
+    # التأكد أن العضو كان في روم صوتي وخرج منه نهائياً
     if before.channel is not None and after.channel is None:
+        
+        current_time = time.time()
+        # منع تكرار الرسالة لنفس العضو إذا حدثت خلال أقل من 5 ثوانٍ
+        if member.id in last_leave_time and (current_time - last_leave_time[member.id]) < 5:
+            return
+        
+        last_leave_time[member.id] = current_time
+
         log_channel = discord.utils.get(member.guild.text_channels, name='logs')
         if not log_channel:
             return
@@ -66,17 +78,15 @@ async def on_voice_state_update(member, before, after):
         embed.set_footer(text=f"Masorh Group • {member.guild.name}")
         await log_channel.send(embed=embed)
 
-# --- أمر سلاش للطرد من الروم مع تسجيل اسم الطارد والمطرود في logs بدقة ---
+# --- أمر سلاش للطرد من الروم بصلاحية المشرفين ---
 @bot.tree.command(name="disconnect", description="طرد عضو من الروم الصوتية وتسجيله في الـ logs")
 @app_commands.describe(member="العضو المراد طرده من الروم")
 @app_commands.checks.has_permissions(move_members=True)
 async def disconnect(interaction: discord.Interaction, member: discord.Member):
     if member.voice and member.voice.channel:
         channel_name = member.voice.channel.name
-        # إخراج العضو من الروم الصوتية
         await member.move_to(None)
         
-        # إرسال رسالة في شات الـ logs
         log_channel = discord.utils.get(interaction.guild.text_channels, name='logs')
         if log_channel:
             embed = discord.Embed(
