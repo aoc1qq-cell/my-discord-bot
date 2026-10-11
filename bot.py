@@ -70,9 +70,9 @@ async def ask(ctx, *, prompt: str):
   )
 
   try:
-    # تم تحديث اسم النموذج إلى النموذج المدعوم
+    # استخدام النموذج الجديد الموصى به من جوجل
     response = await ai_client.aio.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-3.8-flash",
         contents=f"{system_instruction}\nالمستخدم يقول: {prompt}",
     )
     ai_reply = response.text
