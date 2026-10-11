@@ -1,10 +1,10 @@
 import asyncio
 import os
-import shutil
 import discord
 from discord.ext import commands
 import edge_tts
 from google import genai
+import imageio_ffmpeg
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 DISCORD_TOKEN = os.getenv("TOKEN")
@@ -37,7 +37,7 @@ async def on_ready():
       print(f"خطأ في مزامنة الأوامر: {e}")
 
 
-# دالة تشغيل الصوت مع التحقق من وجود ffmpeg
+# دالة تشغيل الصوت باستخدام ffmpeg المدمج في بايثون (حل جذري نهائي)
 async def speak_in_vc(vc, text):
   output_file = "voice_response.mp3"
   communicate = edge_tts.Communicate(text, voice="ar-SA-HamedNeural")
@@ -46,18 +46,8 @@ async def speak_in_vc(vc, text):
   if vc.is_playing():
     vc.stop()
 
-  # التحقق من توفر ffmpeg في النظام
-  ffmpeg_path = shutil.which("ffmpeg")
-  if not ffmpeg_path:
-    # محاولة البحث في المسارات الشائعة إذا لم يكن في الـ PATH
-    for path in ["/usr/bin/ffmpeg", "/usr/local/bin/ffmpeg", "ffmpeg"]:
-      if os.path.exists(path) or shutil.which(path):
-        ffmpeg_path = path
-        break
-
-  if not ffmpeg_path:
-    raise Exception("لم يتم العثور على أداة ffmpeg في النظام.")
-
+  # جلب مسار ffmpeg الداخلي المدمج تلقائياً
+  ffmpeg_path = imageio_ffmpeg.get_executable()
   vc.play(discord.FFmpegPCMAudio(output_file, executable=ffmpeg_path))
 
 
