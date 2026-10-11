@@ -70,7 +70,7 @@ async def ask(ctx, *, prompt: str):
   )
 
   try:
-    # تم تحديث اسم الموديل إلى النموذج الشغال المعتمد
+    # تم تحديث اسم النموذج إلى النموذج المدعوم
     response = await ai_client.aio.models.generate_content(
         model="gemini-2.5-flash",
         contents=f"{system_instruction}\nالمستخدم يقول: {prompt}",
@@ -81,17 +81,7 @@ async def ask(ctx, *, prompt: str):
     await ctx.send(f"🗣️ **البوت:** {ai_reply}")
 
   except Exception as e:
-    # محاولة نموذج احتياطي إذا لزم الأمر
-    try:
-      response = await ai_client.aio.models.generate_content(
-          model="gemini-1.5-flash",
-          contents=f"{system_instruction}\nالمستخدم يقول: {prompt}",
-      )
-      ai_reply = response.text
-      await speak_in_vc(vc, ai_reply)
-      await ctx.send(f"🗣️ **البوت:** {ai_reply}")
-    except Exception as err:
-      await ctx.send(f"❌ خطأ: {str(err)}")
+    await ctx.send(f"❌ حدث خطأ: {str(e)}")
 
 
 # --- أمر مغادرة الروم ---
