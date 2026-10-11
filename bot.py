@@ -31,6 +31,7 @@ async def on_ready():
   print(f"تم تسجيل الدخول بنجاح باسم {bot.user}")
 
 
+# دالة تشغيل الصوت
 async def speak_in_vc(vc, text):
   output_file = "voice_response.mp3"
   communicate = edge_tts.Communicate(text, voice="ar-SA-HamedNeural")
@@ -45,7 +46,7 @@ async def speak_in_vc(vc, text):
 # --- أمر السوالف والتحدث بالصوت ---
 @bot.command()
 async def ask(ctx, *, prompt: str):
-  # 1. التأكد أنك داخل روم صوتي
+  # 1. التأكد أن العضو داخل روم صوتي
   if not ctx.author.voice:
     await ctx.send("❌ لازم تكون داخل روم صوتي عشان أقدر أدخل معك!")
     return
@@ -53,7 +54,7 @@ async def ask(ctx, *, prompt: str):
   user_channel = ctx.author.voice.channel
   vc = ctx.voice_client
 
-  # 2. دخول البوت للمكالمة
+  # 2. دخول البوت للمكالمة الصوتية
   try:
     if not vc or not vc.is_connected():
       vc = await user_channel.connect()
@@ -63,28 +64,37 @@ async def ask(ctx, *, prompt: str):
     await ctx.send(f"❌ خطأ في الاتصال الصوتي: {e}")
     return
 
-  # 3. توليد الرد من الذكاء الاصطناعي
+  # 3. جلب الرد من الذكاء الاصطناعي مع نظام بدائل تلقائي
+  ai_reply = None
+  models_to_try = ["gemini-2.0-flash", "gemini-1.5-flash"]
+
+  for model_name in models_to_try:
+    try:
+      system_instruction = (
+          "أنت صديق يسولف في روم صوتي، أجب بأسلوب عربي عامي لطيف ومختصر جداً بدون"
+          " رموز أو تشكيل أو تنسيقات نصوص."
+      )
+
+      response = await ai_client.aio.models.generate_content(
+          model=model_name,
+          contents=f"{system_instruction}\nالسؤال: {prompt}",
+      )
+      if response and response.text:
+        ai_reply = response.text
+        break
+    except Exception as e:
+      print(f"المحاولة بالفشل مع النموذج {model_name}: {e}")
+      continue
+
+  if not ai_reply:
+    ai_reply = "هلا بك، معك!"
+
+  # 4. تشغيل الصوت وإرسال الرسالة في الشات
   try:
-    system_instruction = (
-        "أنت صديق يسولف في روم صوتي، أجب بأسلوب عربي عامي لطيف ومختصر جداً بدون"
-        " رموز أو تشكيل أو تنسيقات نصوص."
-    )
-
-    response = await ai_client.aio.models.generate_content(
-        model="gemini-2.0-flash",
-        contents=f"{system_instruction}\nالسؤال: {prompt}",
-    )
-
-    ai_reply = response.text
-    if not ai_reply:
-      ai_reply = "هلا بك، معك!"
-
-    # 4. تشغيل الصوت وإرسال الرسالة
     await speak_in_vc(vc, ai_reply)
     await ctx.send(f"🗣️ **البوت:** {ai_reply}")
-
   except Exception as e:
-    await ctx.send(f"❌ حدث خطأ تقني: {e}")
+    await ctx.send(f"❌ خطأ أثناء تشغيل الصوت: {e}")
 
 
 # --- أمر مغادرة الروم ---
