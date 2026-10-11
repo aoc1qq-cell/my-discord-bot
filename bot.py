@@ -43,14 +43,12 @@ async def speak_in_vc(vc, text):
   if vc.is_playing():
     vc.stop()
 
-  # تشغيل الصوت عبر FFmpeg
   vc.play(discord.FFmpegPCMAudio(output_file))
 
 
 # --- أمر السوالف والتحدث بالصوت ---
 @bot.command()
 async def ask(ctx, *, prompt: str):
-  # التأكد أن العضو في روم صوتي
   if not ctx.author.voice:
     await ctx.send("لازم تكون داخل روم صوتي عشان أقدر أسولف معك!")
     return
@@ -58,12 +56,11 @@ async def ask(ctx, *, prompt: str):
   user_channel = ctx.author.voice.channel
   vc = ctx.voice_client
 
-  # إذا البوت مو متصل بالروم بنفسه، يدخل فوراً للروم اللي أنت فيه
+  # الاتصال بالروم الصوتي فوراً إذا لم يكن متصلاً
   if not vc or not vc.is_connected():
     try:
       vc = await user_channel.connect(reconnect=True, timeout=10.0)
     except Exception as e:
-      # إذا كان متصل سابقاً بروم ثاني، ينقل نفسه للروم حقك
       if ctx.guild.voice_client:
         await ctx.guild.voice_client.move_to(user_channel)
         vc = ctx.guild.voice_client
@@ -73,19 +70,24 @@ async def ask(ctx, *, prompt: str):
       " رموز أو تشكيل أو تنسيقات نصوص."
   )
 
-  async with ctx.typing():
-    response = ai_client.models.generate_content(
+  try:
+    # استخدام الإصدار غير المتزامن aio لمنع تجميد البوت
+    response = await ai_client.aio.models.generate_content(
         model="gemini-2.5-flash",
         contents=f"{system_instruction}\nالمستخدم يقول: {prompt}",
     )
     ai_reply = response.text
 
-    # تشغيل الصوت
+    # تشغيل الصوت والرد
     await speak_in_vc(vc, ai_reply)
     await ctx.send(f"🗣️ **البوت:** {ai_reply}")
 
+  except Exception as e:
+    print(f"حدث خطأ أثناء توليد الرد: {e}")
+    await ctx.send("صار فيه مشكلة بسيطة، جرب مرة ثانية!")
 
-# --- امر مغادرة الروم ---
+
+# --- أمر مغادرة الروم ---
 @bot.command()
 async def leave(ctx):
   if ctx.voice_client:
