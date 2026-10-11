@@ -1,5 +1,6 @@
 import asyncio
 import os
+import shutil
 import discord
 from discord.ext import commands
 import edge_tts
@@ -36,7 +37,7 @@ async def on_ready():
       print(f"خطأ في مزامنة الأوامر: {e}")
 
 
-# دالة تشغيل الصوت
+# دالة تشغيل الصوت مع التحقق من وجود ffmpeg
 async def speak_in_vc(vc, text):
   output_file = "voice_response.mp3"
   communicate = edge_tts.Communicate(text, voice="ar-SA-HamedNeural")
@@ -45,7 +46,19 @@ async def speak_in_vc(vc, text):
   if vc.is_playing():
     vc.stop()
 
-  vc.play(discord.FFmpegPCMAudio(output_file))
+  # التحقق من توفر ffmpeg في النظام
+  ffmpeg_path = shutil.which("ffmpeg")
+  if not ffmpeg_path:
+    # محاولة البحث في المسارات الشائعة إذا لم يكن في الـ PATH
+    for path in ["/usr/bin/ffmpeg", "/usr/local/bin/ffmpeg", "ffmpeg"]:
+      if os.path.exists(path) or shutil.which(path):
+        ffmpeg_path = path
+        break
+
+  if not ffmpeg_path:
+    raise Exception("لم يتم العثور على أداة ffmpeg في النظام.")
+
+  vc.play(discord.FFmpegPCMAudio(output_file, executable=ffmpeg_path))
 
 
 # --- أمر السلاش: /join_voice ---
@@ -74,7 +87,7 @@ async def join_voice(interaction: discord.Interaction):
     await interaction.followup.send(f"❌ خطأ في الاتصال الصوتي: {e}")
     return
 
-  # توليد الرد
+  # توليد الرد بالذكاء الاصطناعي
   system_instruction = (
       "أنت صديق يسولف في روم صوتي ديسكورد، أجب بأسلوب عربي عامي لطيف ومختصر جداً"
       " ورحب بالعضو بدون رموز أو تشكيل."
