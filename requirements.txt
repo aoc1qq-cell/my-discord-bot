@@ -2,3 +2,4 @@ discord.py[voice]
 edge-tts
 google-genai
 PyNaCl
+imageio-ffmpeg
