@@ -8,7 +8,7 @@ from google import genai
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 DISCORD_TOKEN = os.getenv("TOKEN")
 
-# استخدام النموذج المستقر والرسمي من جوجل
+# إعداد عميل الذكاء الاصطناعي
 ai_client = genai.Client(api_key=GEMINI_API_KEY)
 
 intents = discord.Intents.default()
@@ -42,7 +42,7 @@ async def speak_in_vc(vc, text):
   vc.play(discord.FFmpegPCMAudio(output_file))
 
 
-# --- أمر السوالف والتحدث بالصوت (النهائي) ---
+# --- أمر السوالف والتحدث بالصوت ---
 @bot.command()
 async def ask(ctx, *, prompt: str):
   # 1. التأكد أنك داخل روم صوتي
@@ -53,7 +53,7 @@ async def ask(ctx, *, prompt: str):
   user_channel = ctx.author.voice.channel
   vc = ctx.voice_client
 
-  # 2. دخول البوت للمكالمة فوراً
+  # 2. دخول البوت للمكالمة
   try:
     if not vc or not vc.is_connected():
       vc = await user_channel.connect()
@@ -79,7 +79,7 @@ async def ask(ctx, *, prompt: str):
     if not ai_reply:
       ai_reply = "هلا بك، معك!"
 
-    # 4. تشغيل الصوت وإرسال الرسالة في الشات
+    # 4. تشغيل الصوت وإرسال الرسالة
     await speak_in_vc(vc, ai_reply)
     await ctx.send(f"🗣️ **البوت:** {ai_reply}")
 
