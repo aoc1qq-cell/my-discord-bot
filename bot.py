@@ -22,11 +22,6 @@ class MyBot(commands.Bot):
   def __init__(self):
     super().__init__(command_prefix="!", intents=intents)
 
-  async def setup_hook(self):
-    # مزامنة أوامر السلاش مع سيرفرات ديسكورد عند التشغيل
-    await self.tree.sync()
-    print("تم مزامنة أوامر السلاش (/join_voice) بنجاح!")
-
 
 bot = MyBot()
 
@@ -34,6 +29,15 @@ bot = MyBot()
 @bot.event
 async def on_ready():
   print(f"تم تسجيل الدخول بنجاح باسم {bot.user}")
+
+  # مزامنة الأوامر فوراً مع جميع السيرفرات لكي تظهر حالاً عند كتابة /
+  for guild in bot.guilds:
+    try:
+      bot.tree.copy_global_to(guild=guild)
+      await bot.tree.sync(guild=guild)
+      print(f"تم مزامنة الأوامر فورياً لسيرفر: {guild.name}")
+    except Exception as e:
+      print(f"خطأ في مزامنة السيرفر {guild.name}: {e}")
 
 
 # دالة تشغيل الصوت
@@ -54,20 +58,17 @@ async def speak_in_vc(vc, text):
     description="يدخل البوت القناة الصوتية ويسولف معك فوراً",
 )
 async def join_voice(interaction: discord.Interaction):
-  # 1. التأكد أن المستخدم داخل روم صوتي
   if not interaction.user.voice:
     await interaction.response.send_message(
         "❌ لازم تكون داخل روم صوتي عشان أقدر أدخل معك!", ephemeral=True
     )
     return
 
-  # إبلاغ ديسكورد أن البوت قيد معالجة الطلب
   await interaction.response.defer()
 
   user_channel = interaction.user.voice.channel
   vc = interaction.guild.voice_client
 
-  # 2. دخول البوت أو التنقل للقناة الصوتية
   try:
     if not vc or not vc.is_connected():
       vc = await user_channel.connect()
@@ -77,7 +78,6 @@ async def join_voice(interaction: discord.Interaction):
     await interaction.followup.send(f"❌ خطأ في الاتصال الصوتي: {e}")
     return
 
-  # 3. جلب رد ترحيبي وسالفة سريعة بالذكاء الاصطناعي
   system_instruction = (
       "أنت صديق يسولف في روم صوتي ديسكورد، أجب بأسلوب عربي عامي لطيف ومختصر جداً"
       " ورحب بالعضو بدون رموز أو تشكيل."
@@ -97,13 +97,11 @@ async def join_voice(interaction: discord.Interaction):
         ai_reply = response.text
         break
     except Exception as e:
-      print(f"فشلت المحاولة مع {model_name}: {e}")
       continue
 
   if not ai_reply:
     ai_reply = f"أهلاً بك يا {interaction.user.display_name}! نورت الروم الصوتي."
 
-  # 4. تشغيل الصوت وإرسال رد تفاعلي
   try:
     await speak_in_vc(vc, ai_reply)
     await interaction.followup.send(f"🗣️ **البوت:** {ai_reply}")
