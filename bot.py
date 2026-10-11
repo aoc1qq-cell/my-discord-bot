@@ -46,7 +46,7 @@ async def speak_in_vc(vc, text):
   vc.play(discord.FFmpegPCMAudio(output_file))
 
 
-# --- أمر السوالف والتحدث بالصوت ---
+# --- أمر السوالف والتحدث بالصوت مع إظهار الخطأ الدقيق إن وُجد ---
 @bot.command()
 async def ask(ctx, *, prompt: str):
   if not ctx.author.voice:
@@ -56,7 +56,6 @@ async def ask(ctx, *, prompt: str):
   user_channel = ctx.author.voice.channel
   vc = ctx.voice_client
 
-  # الاتصال بالروم الصوتي فوراً إذا لم يكن متصلاً
   if not vc or not vc.is_connected():
     try:
       vc = await user_channel.connect(reconnect=True, timeout=10.0)
@@ -71,20 +70,21 @@ async def ask(ctx, *, prompt: str):
   )
 
   try:
-    # استخدام الإصدار غير المتزامن aio لمنع تجميد البوت
+    # استخدام الإصدار غير المتزامن aio
     response = await ai_client.aio.models.generate_content(
         model="gemini-2.5-flash",
         contents=f"{system_instruction}\nالمستخدم يقول: {prompt}",
     )
     ai_reply = response.text
 
-    # تشغيل الصوت والرد
     await speak_in_vc(vc, ai_reply)
     await ctx.send(f"🗣️ **البوت:** {ai_reply}")
 
   except Exception as e:
-    print(f"حدث خطأ أثناء توليد الرد: {e}")
-    await ctx.send("صار فيه مشكلة بسيطة، جرب مرة ثانية!")
+    # طباعة الخطأ الحقيقي في الشات لنعرف المشكلة فوراً
+    error_message = f"❌ حدث خطأ: {str(e)}"
+    print(error_message)
+    await ctx.send(error_message)
 
 
 # --- أمر مغادرة الروم ---
