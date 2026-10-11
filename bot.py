@@ -46,7 +46,27 @@ async def speak_in_vc(vc, text):
   vc.play(discord.FFmpegPCMAudio(output_file))
 
 
-# --- أمر السوالف والتحدث بالصوت مع نظام البديل التلقائي ---
+# --- دالة الذكاء الاصطناعي مع نظام إعادة المحاولة التلقائية عند الضغط (503) ---
+async def generate_ai_response(prompt, system_instruction):
+  models = ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
+
+  for model_name in models:
+    for attempt in range(3):  # 3 محاولات لكل نموذج
+      try:
+        response = await ai_client.aio.models.generate_content(
+            model=model_name,
+            contents=f"{system_instruction}\nالمستخدم يقول: {prompt}",
+        )
+        if response and response.text:
+          return response.text
+      except Exception as e:
+        print(f"محاولة فاشلة ({model_name}) محاولة {attempt+1}: {e}")
+        await asyncio.sleep(2)  # انتظار ثانيتين قبل المحاولة التالية
+
+  return None
+
+
+# --- أمر السوالف والتحدث بالصوت ---
 @bot.command()
 async def ask(ctx, *, prompt: str):
   if not ctx.author.voice:
@@ -69,30 +89,17 @@ async def ask(ctx, *, prompt: str):
       " رموز أو تشكيل أو تنسيقات نصوص."
   )
 
-  ai_reply = None
-
-  # محاولة استخدام النموذج الأساسي
-  try:
-    response = await ai_client.aio.models.generate_content(
-        model="gemini-3.8-flash",
-        contents=f"{system_instruction}\nالمستخدم يقول: {prompt}",
-    )
-    ai_reply = response.text
-  except Exception:
-    # محاولة نموذج بديل فوراً في حال واجه ضغطاً (503)
-    try:
-      response = await ai_client.aio.models.generate_content(
-          model="gemini-1.5-flash",
-          contents=f"{system_instruction}\nالمستخدم يقول: {prompt}",
-      )
-      ai_reply = response.text
-    except Exception as e:
-      await ctx.send(f"❌ عذراً، الخدمة تحت الضغط حالياً. جرب بعد قليل.")
-      return
+  # إرسال إشعار كتابة أثناء جلب الرد
+  async with ctx.typing():
+    ai_reply = await generate_ai_response(prompt, system_instruction)
 
   if ai_reply:
     await speak_in_vc(vc, ai_reply)
     await ctx.send(f"🗣️ **البوت:** {ai_reply}")
+  else:
+    await ctx.send(
+        "❌ الخوادم تواجه ضغطاً شديداً حالياً، حاول مرة أخرى بعد قليل."
+    )
 
 
 # --- أمر مغادرة الروم ---
