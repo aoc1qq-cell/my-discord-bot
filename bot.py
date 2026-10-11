@@ -46,7 +46,7 @@ async def speak_in_vc(vc, text):
   vc.play(discord.FFmpegPCMAudio(output_file))
 
 
-# --- أمر السوالف والتحدث بالصوت ---
+# --- أمر السوالف والتحدث بالصوت مع نظام البديل التلقائي ---
 @bot.command()
 async def ask(ctx, *, prompt: str):
   if not ctx.author.voice:
@@ -69,19 +69,30 @@ async def ask(ctx, *, prompt: str):
       " رموز أو تشكيل أو تنسيقات نصوص."
   )
 
+  ai_reply = None
+
+  # محاولة استخدام النموذج الأساسي
   try:
-    # استخدام النموذج الجديد الموصى به من جوجل
     response = await ai_client.aio.models.generate_content(
         model="gemini-3.8-flash",
         contents=f"{system_instruction}\nالمستخدم يقول: {prompt}",
     )
     ai_reply = response.text
+  except Exception:
+    # محاولة نموذج بديل فوراً في حال واجه ضغطاً (503)
+    try:
+      response = await ai_client.aio.models.generate_content(
+          model="gemini-1.5-flash",
+          contents=f"{system_instruction}\nالمستخدم يقول: {prompt}",
+      )
+      ai_reply = response.text
+    except Exception as e:
+      await ctx.send(f"❌ عذراً، الخدمة تحت الضغط حالياً. جرب بعد قليل.")
+      return
 
+  if ai_reply:
     await speak_in_vc(vc, ai_reply)
     await ctx.send(f"🗣️ **البوت:** {ai_reply}")
-
-  except Exception as e:
-    await ctx.send(f"❌ حدث خطأ: {str(e)}")
 
 
 # --- أمر مغادرة الروم ---
