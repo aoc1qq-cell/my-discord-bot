@@ -1,7 +1,6 @@
 import asyncio
 import os
 import discord
-from discord import app_commands
 from discord.ext import commands
 import edge_tts
 from google import genai
@@ -29,15 +28,12 @@ bot = MyBot()
 @bot.event
 async def on_ready():
   print(f"تم تسجيل الدخول بنجاح باسم {bot.user}")
-
-  # مزامنة الأوامر فوراً مع جميع السيرفرات لكي تظهر حالاً عند كتابة /
   for guild in bot.guilds:
     try:
       bot.tree.copy_global_to(guild=guild)
       await bot.tree.sync(guild=guild)
-      print(f"تم مزامنة الأوامر فورياً لسيرفر: {guild.name}")
     except Exception as e:
-      print(f"خطأ في مزامنة السيرفر {guild.name}: {e}")
+      print(f"خطأ في مزامنة الأوامر: {e}")
 
 
 # دالة تشغيل الصوت
@@ -52,7 +48,7 @@ async def speak_in_vc(vc, text):
   vc.play(discord.FFmpegPCMAudio(output_file))
 
 
-# --- أمر سلاش: /join_voice ---
+# --- أمر السلاش: /join_voice ---
 @bot.tree.command(
     name="join_voice",
     description="يدخل البوت القناة الصوتية ويسولف معك فوراً",
@@ -78,6 +74,7 @@ async def join_voice(interaction: discord.Interaction):
     await interaction.followup.send(f"❌ خطأ في الاتصال الصوتي: {e}")
     return
 
+  # توليد الرد
   system_instruction = (
       "أنت صديق يسولف في روم صوتي ديسكورد، أجب بأسلوب عربي عامي لطيف ومختصر جداً"
       " ورحب بالعضو بدون رموز أو تشكيل."
@@ -85,9 +82,7 @@ async def join_voice(interaction: discord.Interaction):
   prompt = f"رحب بالعضو {interaction.user.display_name} وسولف معه بشكل سريع"
 
   ai_reply = None
-  models_to_try = ["gemini-2.0-flash", "gemini-1.5-flash"]
-
-  for model_name in models_to_try:
+  for model_name in ["gemini-2.0-flash", "gemini-1.5-flash"]:
     try:
       response = await ai_client.aio.models.generate_content(
           model=model_name,
@@ -96,11 +91,11 @@ async def join_voice(interaction: discord.Interaction):
       if response and response.text:
         ai_reply = response.text
         break
-    except Exception as e:
+    except Exception:
       continue
 
   if not ai_reply:
-    ai_reply = f"أهلاً بك يا {interaction.user.display_name}! نورت الروم الصوتي."
+    ai_reply = f"أهلاً بك يا {interaction.user.display_name}! نورت الروم."
 
   try:
     await speak_in_vc(vc, ai_reply)
@@ -109,7 +104,7 @@ async def join_voice(interaction: discord.Interaction):
     await interaction.followup.send(f"❌ خطأ أثناء تشغيل الصوت: {e}")
 
 
-# --- أمر سلاش لمغادرة المكالمة: /leave ---
+# --- أمر السلاش: /leave ---
 @bot.tree.command(
     name="leave", description="يخرج البوت من القناة الصوتية الحالية"
 )
