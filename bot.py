@@ -114,11 +114,14 @@ async def on_voice_state_update(member, before, after):
 # --- أمر للسوالف معه أثناء وجوده بالروم ---
 @bot.command()
 async def ask(ctx, *, prompt: str):
-  vc = ctx.voice_client
+  # البحث عن البوت في الرومات الصوتية داخل السيرفر تلقائياً
+  vc = discord.utils.get(bot.voice_clients, guild=ctx.guild)
+
   if not vc or not vc.is_connected():
     await ctx.send("البوت ليس متواجد في روم صوتية حالياً!")
     return
 
+  # توجيه الذكاء الاصطناعي للرد بأسلوب محادثة شفهية وسريعة
   system_instruction = (
       "أنت صديق يسولف في روم صوتي، أجب بأسلوب عربي عامي لطيف ومختصر جداً بدون"
       " رموز أو تشكيل أو تنسيقات نصوص."
