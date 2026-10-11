@@ -1,7 +1,6 @@
 import asyncio
 import os
 import discord
-from discord import app_commands
 from discord.ext import commands
 import edge_tts
 from google import genai
@@ -9,6 +8,7 @@ from google import genai
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 DISCORD_TOKEN = os.getenv("TOKEN")
 
+# استخدام النموذج المستقر والرسمي من جوجل
 ai_client = genai.Client(api_key=GEMINI_API_KEY)
 
 intents = discord.Intents.default()
@@ -21,10 +21,6 @@ class MyBot(commands.Bot):
 
   def __init__(self):
     super().__init__(command_prefix="!", intents=intents)
-
-  async def setup_hook(self):
-    await self.tree.sync()
-    print("تم مزامنة أوامر السلاش بنجاح!")
 
 
 bot = MyBot()
@@ -46,60 +42,49 @@ async def speak_in_vc(vc, text):
   vc.play(discord.FFmpegPCMAudio(output_file))
 
 
-# --- دالة الذكاء الاصطناعي مع نظام إعادة المحاولة التلقائية عند الضغط (503) ---
-async def generate_ai_response(prompt, system_instruction):
-  models = ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
-
-  for model_name in models:
-    for attempt in range(3):  # 3 محاولات لكل نموذج
-      try:
-        response = await ai_client.aio.models.generate_content(
-            model=model_name,
-            contents=f"{system_instruction}\nالمستخدم يقول: {prompt}",
-        )
-        if response and response.text:
-          return response.text
-      except Exception as e:
-        print(f"محاولة فاشلة ({model_name}) محاولة {attempt+1}: {e}")
-        await asyncio.sleep(2)  # انتظار ثانيتين قبل المحاولة التالية
-
-  return None
-
-
-# --- أمر السوالف والتحدث بالصوت ---
+# --- أمر السوالف والتحدث بالصوت (النهائي) ---
 @bot.command()
 async def ask(ctx, *, prompt: str):
+  # 1. التأكد أنك داخل روم صوتي
   if not ctx.author.voice:
-    await ctx.send("لازم تكون داخل روم صوتي عشان أقدر أسولف معك!")
+    await ctx.send("❌ لازم تكون داخل روم صوتي عشان أقدر أدخل معك!")
     return
 
   user_channel = ctx.author.voice.channel
   vc = ctx.voice_client
 
-  if not vc or not vc.is_connected():
-    try:
-      vc = await user_channel.connect(reconnect=True, timeout=10.0)
-    except Exception:
-      if ctx.guild.voice_client:
-        await ctx.guild.voice_client.move_to(user_channel)
-        vc = ctx.guild.voice_client
+  # 2. دخول البوت للمكالمة فوراً
+  try:
+    if not vc or not vc.is_connected():
+      vc = await user_channel.connect()
+    elif vc.channel != user_channel:
+      await vc.move_to(user_channel)
+  except Exception as e:
+    await ctx.send(f"❌ خطأ في الاتصال الصوتي: {e}")
+    return
 
-  system_instruction = (
-      "أنت صديق يسولف في روم صوتي، أجب بأسلوب عربي عامي لطيف ومختصر جداً بدون"
-      " رموز أو تشكيل أو تنسيقات نصوص."
-  )
+  # 3. توليد الرد من الذكاء الاصطناعي
+  try:
+    system_instruction = (
+        "أنت صديق يسولف في روم صوتي، أجب بأسلوب عربي عامي لطيف ومختصر جداً بدون"
+        " رموز أو تشكيل أو تنسيقات نصوص."
+    )
 
-  # إرسال إشعار كتابة أثناء جلب الرد
-  async with ctx.typing():
-    ai_reply = await generate_ai_response(prompt, system_instruction)
+    response = await ai_client.aio.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=f"{system_instruction}\nالسؤال: {prompt}",
+    )
 
-  if ai_reply:
+    ai_reply = response.text
+    if not ai_reply:
+      ai_reply = "هلا بك، معك!"
+
+    # 4. تشغيل الصوت وإرسال الرسالة في الشات
     await speak_in_vc(vc, ai_reply)
     await ctx.send(f"🗣️ **البوت:** {ai_reply}")
-  else:
-    await ctx.send(
-        "❌ الخوادم تواجه ضغطاً شديداً حالياً، حاول مرة أخرى بعد قليل."
-    )
+
+  except Exception as e:
+    await ctx.send(f"❌ حدث خطأ تقني: {e}")
 
 
 # --- أمر مغادرة الروم ---
